@@ -19,7 +19,7 @@
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "test": "pnpm run test:int-with-wait && pnpm run test:e2e",
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --no-experimental-strip-types\" pnpm exec playwright test --config=playwright.config.ts",
-    "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
+    "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest watch --config ./vitest.config.mts",
     "test:int-with-wait": "pnpm exec concurrently --success first -k -n \"dev,test\" \"pnpm run dev\" \"sh -lc 'until curl -fsS http://127.0.0.1:3000/ >/dev/null; do sleep 0.25; done; pnpm run test:int'\""
   },
   "dependencies": {
