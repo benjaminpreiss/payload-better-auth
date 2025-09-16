@@ -22,3 +22,6 @@ node_modules/
 
 # payload sqlite db
 payload-and-frontend.db
+
+# better auth sqlite db
+better-auth.db
