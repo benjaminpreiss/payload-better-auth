@@ -16,6 +16,7 @@ import { Header } from './Header/config'
 import { plugins } from './plugins'
 import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
+import { triggerFullReconcile } from './lib/payload-reconcile'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -90,5 +91,9 @@ export default buildConfig({
       },
     },
     tasks: [],
+  },
+  async onInit(payload) {
+    // Trigger full reconcile on Payload startup
+    await triggerFullReconcile(payload)
   },
 })
