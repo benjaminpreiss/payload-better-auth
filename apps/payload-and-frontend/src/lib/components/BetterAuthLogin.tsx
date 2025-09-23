@@ -8,7 +8,7 @@ interface AuthMethods {
 async function fetchAuthMethods(): Promise<AuthMethods> {
   try {
     const baseURL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseURL}/api/auth/methods`, {
+    const response = await fetch(`${baseURL}/api/auth/auth/methods`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -33,17 +33,13 @@ export default async function BetterAuthLogin() {
 
   return (
     <div
-      className="better-auth-login"
       style={{
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        minHeight: '100vh',
-        padding: '2rem',
       }}
     >
       <div
-        className="auth-container"
         style={{
           background: 'white',
           padding: '2rem',
@@ -54,7 +50,6 @@ export default async function BetterAuthLogin() {
         }}
       >
         <h2
-          className="auth-title"
           style={{
             textAlign: 'center',
             marginBottom: '2rem',
@@ -69,7 +64,6 @@ export default async function BetterAuthLogin() {
         {authMethods.includes('emailAndPassword') && <EmailPasswordForm />}
         {authMethods.length === 0 && (
           <div
-            className="no-auth-methods"
             style={{
               textAlign: 'center',
               padding: '2rem',

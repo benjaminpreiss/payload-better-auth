@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { ChangeEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, TextInput, FieldLabel, useField } from '@payloadcms/ui'
 import { authClient } from '../auth-client'
@@ -17,21 +17,19 @@ export function EmailPasswordForm() {
   const [isLoading, setIsLoading] = useState(false)
 
   // Use useField hooks for each input to get proper setValue functions
-  const { value: emailValue, setValue: setEmailValue } = useField<string>({ path: 'email' })
-  const { value: passwordValue, setValue: setPasswordValue } = useField<string>({
-    path: 'password',
-  })
+  const [emailValue, setEmailValue] = useState('')
+  const [passwordValue, setPasswordValue] = useState('')
 
-  const handleEmailChange = (value: unknown) => {
-    setEmailValue(value)
+  const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setEmailValue(event.target.value)
     // Clear field-specific error when user starts typing
     if (errors.email) {
       setErrors((prev) => ({ ...prev, email: undefined }))
     }
   }
 
-  const handlePasswordChange = (value: unknown) => {
-    setPasswordValue(value)
+  const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setPasswordValue(event.target.value)
     // Clear field-specific error when user starts typing
     if (errors.password) {
       setErrors((prev) => ({ ...prev, password: undefined }))
@@ -40,16 +38,16 @@ export function EmailPasswordForm() {
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
-    const email = String(emailValue || '')
-    const password = String(passwordValue || '')
+    const email = String(emailValue || '').trim()
+    const password = String(passwordValue || '').trim()
 
-    if (!email.trim()) {
+    if (!email) {
       newErrors.email = 'Email is required'
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       newErrors.email = 'Please enter a valid email address'
     }
 
-    if (!password.trim()) {
+    if (!password) {
       newErrors.password = 'Password is required'
     } else if (password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters'

@@ -46,6 +46,12 @@ export const auth = betterAuth({
       runOnBoot: process.env.RECONCILE_ON_BOOT !== 'false',
       tickMs: 1000,
       reconcileEveryMs: 30 * 60_000,
+      createAdmins: [
+        {
+          user: { email: 'sample-admin@user.com', name: 'Sample admin', password: 'bubbletea' },
+          overwrite: true,
+        },
+      ],
     }),
     apiKey(),
   ],

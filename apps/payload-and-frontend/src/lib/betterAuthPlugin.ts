@@ -11,9 +11,16 @@ import {
 
 type PayloadSyncPluginContext = AuthContext & { payloadSyncPlugin: { queue: Queue } }
 
+type CreateAdminsUser = Parameters<AuthContext['internalAdapter']['createUser']>['0']
+
+const defaultLog = (msg: string, extra?: any) => {
+  console.log(`[reconcile] ${msg}`, extra ? JSON.stringify(extra, null, 2) : '')
+}
+
 export function reconcileQueuePlugin(
   opts: {
     token: string // simple header token for admin endpoints
+    createAdmins?: { user: CreateAdminsUser; overwrite?: boolean }[]
   } & InitOptions,
 ): BetterAuthPlugin {
   return {
@@ -93,16 +100,55 @@ export function reconcileQueuePlugin(
       ),
     },
     // TODO: the queue must be destroyed on better auth instance destruction, as it utilizes timers.
-    init(ctx) {
+    async init({ internalAdapter, password }) {
+      if (opts.createAdmins)
+        try {
+          await Promise.all(
+            opts.createAdmins.map(async ({ user, overwrite }) => {
+              const alreadyExistingUser = await internalAdapter.findUserByEmail(user.email)
+              if (alreadyExistingUser) {
+                if (overwrite) {
+                  // clear accounts
+                  await internalAdapter.deleteAccounts(alreadyExistingUser.user.id)
+                  const createdUser = await internalAdapter.updateUser(
+                    alreadyExistingUser.user.id,
+                    {
+                      ...user,
+                      role: 'admin',
+                    },
+                  )
+                  // assuming this creates an account?
+                  await internalAdapter.linkAccount({
+                    userId: createdUser.id,
+                    providerId: 'credential',
+                    accountId: createdUser.id,
+                    password: await password.hash(user.password),
+                  })
+                }
+              }
+              // if the user doesnt exist there can't be an account
+              else {
+                const createdUser = await internalAdapter.createUser({ ...user, role: 'admin' })
+                await internalAdapter.linkAccount({
+                  userId: createdUser.id,
+                  providerId: 'credential',
+                  accountId: createdUser.id,
+                  password: await password.hash(user.password),
+                })
+              }
+            }),
+          )
+        } catch (error) {
+          defaultLog('Failed to create Admin user', error)
+        }
+
       const queue = new Queue(
         {
           deleteUserFromPayload,
-          internalAdapter: ctx.internalAdapter,
+          internalAdapter,
           listPayloadUsersPage,
           syncUserToPayload,
-          log: (msg: string, extra?: any) => {
-            console.log(`[reconcile] ${msg}`, extra ? JSON.stringify(extra, null, 2) : '')
-          },
+          log: defaultLog,
         },
         opts,
       )
