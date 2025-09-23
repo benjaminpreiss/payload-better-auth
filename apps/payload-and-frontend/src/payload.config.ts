@@ -26,13 +26,23 @@ export default buildConfig({
     components: {
       // The `BeforeLogin` component renders a message that you see while logging into your admin panel.
       // Feel free to delete this at any time. Simply remove the line below.
-      beforeLogin: ['@/components/BeforeLogin'],
+      beforeLogin: ['@/lib/components/BetterAuthLogin'],
       // The `BeforeDashboard` component renders the 'welcome' block that you see after logging into your admin panel.
       // Feel free to delete this at any time. Simply remove the line below.
       beforeDashboard: ['@/components/BeforeDashboard'],
+      views: {
+        login: {
+          Component: '@/lib/components/BetterAuthLogin', // RSC or 'use client' component
+          path: '/auth',
+          exact: true,
+        },
+      },
     },
     importMap: {
       baseDir: path.resolve(dirname),
+    },
+    routes: {
+      login: '/auth',
     },
     user: Users.slug,
     livePreview: {

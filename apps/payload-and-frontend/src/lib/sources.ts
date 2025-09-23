@@ -3,7 +3,6 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { signCanonical } from './crypto-shared'
 import type { User } from '@/payload-types'
-import type { Auth } from './auth'
 
 const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET!
 
@@ -16,23 +15,6 @@ export interface BetterAuthUser {
   name?: string | null
   email?: string | null
   [k: string]: any
-}
-
-/** Load Better-Auth users page by page via the Better-Auth *server API* (Admin plugin). */
-export async function listBAUsersPage(
-  auth: Auth,
-  limit: number,
-  offset: number,
-  headers: Headers,
-): Promise<{ users: BAUser[]; total: number }> {
-  const { users, total } = await auth.api.listUsers({
-    query: { limit, offset },
-    headers,
-  })
-  return {
-    users: users.map((u: BAUser) => ({ id: u.id, email: u.email })),
-    total,
-  }
 }
 
 /** Load Payload users page by page via Local API. */
@@ -119,117 +101,4 @@ export async function attachExternalIdInPayload(payloadUserId: number, baId: str
     data: { externalId: baId },
     overrideAccess: true,
   })
-}
-
-// Generate a unique process ID for this Node.js process
-const PROCESS_ID = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-const EMAIL_SUFFIX = '-agent@sync-to-payload.agent'
-
-export async function createAndGetBAAdminSession({ auth }: { auth: Auth }) {
-  const timestamp = Date.now()
-  const processEmail = `${PROCESS_ID}${EMAIL_SUFFIX}`
-
-  const newUser = {
-    email: processEmail,
-    password: 'some-secure-password',
-    name: `Payload sync agent`,
-    role: 'admin',
-  } as const
-
-  console.log(`[admin-session] Creating admin user for process: ${newUser.email}`)
-
-  const { user } = await auth.api.createUser({
-    body: newUser,
-  })
-
-  console.log(`[admin-session] Created user with ID: ${user.id}`)
-
-  // create api key
-  const { key: apiKey } = await auth.api.createApiKey({
-    body: {
-      name: `sync-${PROCESS_ID.substr(0, 8)}`,
-      userId: user.id,
-    },
-  })
-
-  console.log(`[admin-session] Created API key: ${apiKey.substring(0, 8)}...`)
-
-  const headers = new Headers({
-    'x-api-key': apiKey,
-  })
-
-  // Simple cleanup: remove old admin users (but be conservative)
-  await cleanupOldAdminUsers(auth, headers, processEmail)
-
-  console.log(`[admin-session] Admin session setup complete`)
-  return { headers, processId: PROCESS_ID }
-}
-
-async function cleanupOldAdminUsers(auth: Auth, headers: Headers, currentUserEmail: string) {
-  console.log(`[admin-session] Looking for old admin users to cleanup...`)
-
-  try {
-    const { users: oldAdminUsers } = await auth.api.listUsers({
-      query: {
-        searchValue: EMAIL_SUFFIX,
-        searchField: 'email',
-        searchOperator: 'ends_with',
-        // exclude this current user from deletions
-        filterField: 'email',
-        filterValue: currentUserEmail,
-        filterOperator: 'ne',
-      },
-      headers,
-    })
-
-    console.log(
-      `[admin-session] Found ${oldAdminUsers.length} old admin users to cleanup:`,
-      oldAdminUsers.map(({ id, email }) => ({ id, email })),
-    )
-
-    if (oldAdminUsers.length > 0) {
-      // Get all API keys to find which ones belong to old users
-      const apiKeys = await auth.api.listApiKeys({
-        headers,
-      })
-
-      for (const { id: userId, email } of oldAdminUsers) {
-        console.log(`[admin-session] Cleaning up old user: ${email} (${userId})`)
-
-        // Find and delete API keys for this user
-        const deletableApiKeys = apiKeys.filter(
-          ({ userId: apiKeyUserId }) => apiKeyUserId === userId,
-        )
-
-        for (const { id: apiKeyId } of deletableApiKeys) {
-          try {
-            await auth.api.deleteApiKey({
-              body: {
-                keyId: apiKeyId,
-              },
-              headers,
-            })
-            console.log(`[admin-session] Deleted API key: ${apiKeyId}`)
-          } catch (error) {
-            console.warn(`[admin-session] Failed to delete API key ${apiKeyId}:`, error)
-          }
-        }
-
-        // Delete the user
-        try {
-          await auth.api.removeUser({
-            body: {
-              userId: userId,
-            },
-            headers,
-          })
-          console.log(`[admin-session] Deleted old user: ${email} (${userId})`)
-        } catch (error) {
-          console.warn(`[admin-session] Failed to delete user ${userId}:`, error)
-        }
-      }
-    }
-  } catch (error) {
-    console.warn(`[admin-session] Cleanup failed, but continuing with new session:`, error)
-  }
 }

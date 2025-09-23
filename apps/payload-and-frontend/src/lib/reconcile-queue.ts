@@ -1,13 +1,6 @@
 // src/reconcile-queue.ts
 import type { BAUser, PayloadUser } from './sources'
-import {
-  listBAUsersPage,
-  listPayloadUsersPage,
-  syncUserToPayload,
-  deleteUserFromPayload,
-  createAndGetBAAdminSession,
-} from './sources'
-import type { Auth } from './auth'
+import { AuthContext } from 'better-auth'
 
 export interface QueueDeps {
   // Idempotent effects (via Payload Local API)
@@ -15,11 +8,11 @@ export interface QueueDeps {
   deleteUserFromPayload: (baId: string) => Promise<void> // delete by externalId; ignore missing
 
   // Paginated loaders (efficient processing)
-  listBAUsersPage: (limit: number, offset: number) => Promise<{ users: BAUser[]; total: number }>
   listPayloadUsersPage: (
     limit: number,
     page: number,
   ) => Promise<{ users: PayloadUser[]; total: number; hasNextPage: boolean }>
+  internalAdapter: AuthContext['internalAdapter']
 
   // Policy
   prunePayloadOrphans?: boolean // default: false
@@ -31,18 +24,17 @@ export interface QueueDeps {
 export type TaskSource = 'user-operation' | 'full-reconcile'
 
 // Bootstrap options interface
-export interface BootstrapOptions {
+export interface InitOptions {
   tickMs?: number
   reconcileEveryMs?: number
   runOnBoot?: boolean
   forceReset?: boolean
 }
 
-// Bootstrap state interface
+// Simplified bootstrap state interface (removed processId)
 interface BootstrapState {
   isBootstrapped: boolean
   adminHeaders: Headers | null
-  processId: string | null
   bootstrapPromise: Promise<void> | null
 }
 
@@ -67,7 +59,7 @@ type Task =
 
 const KEY = (t: Task) => `${t.kind}:${t.baId}`
 
-class Queue {
+export class Queue {
   private deps!: QueueDeps
   private q: Task[] = []
   private keys = new Map<string, Task>()
@@ -86,108 +78,48 @@ class Queue {
   private bootstrapState: BootstrapState = {
     isBootstrapped: false,
     adminHeaders: null,
-    processId: null,
     bootstrapPromise: null,
   }
 
-  init(deps: QueueDeps) {
+  constructor(deps: QueueDeps, opts: InitOptions = {}) {
     this.deps = deps
+    const log = this.deps?.log ?? (() => {})
+    // Start bootstrap process - but defer heavy operations
+    log('Starting bootstrap process...')
+
+    // Start timers but don't run reconcile immediately
+    this.start({
+      tickMs: opts?.tickMs ?? 1000,
+      reconcileEveryMs: opts?.reconcileEveryMs ?? 30 * 60_000,
+    })
+
+    // Defer the initial reconcile to avoid circular dependency issues
+    if (opts?.runOnBoot ?? true) {
+      // Use setTimeout instead of queueMicrotask to give more time for initialization
+      setTimeout(() => {
+        this.seedFullReconcile().catch((err) => console.error('[reconcile] seed failed', err))
+      }, 2000) // 2 second delay to allow Better Auth and Payload to fully initialize
+    }
+
+    log('Bootstrap process completed')
   }
 
-  async bootstrap(auth: Auth, opts: BootstrapOptions = {}) {
-    // Allow forced reset for testing or when explicitly requested
-    if (opts?.forceReset) {
-      console.log('[reconcile] Force reset requested, clearing bootstrap state...')
-      this.bootstrapState.isBootstrapped = false
-      this.bootstrapState.adminHeaders = null
-      this.bootstrapState.processId = null
-      this.bootstrapState.bootstrapPromise = null
-    }
-
-    // If already bootstrapped, return immediately
-    if (this.bootstrapState.isBootstrapped && this.bootstrapState.adminHeaders) {
-      console.log(
-        `[reconcile] Already bootstrapped for process ${this.bootstrapState.processId}, reusing existing session...`,
-      )
-      return
-    }
-
-    // If bootstrap is in progress, wait for it to complete
-    if (this.bootstrapState.bootstrapPromise) {
-      console.log('[reconcile] Bootstrap already in progress, waiting for completion...')
-      await this.bootstrapState.bootstrapPromise
-      return
-    }
-
-    // Start bootstrap process
-    console.log('[reconcile] Starting bootstrap process...')
-    this.bootstrapState.bootstrapPromise = this.performBootstrap(auth, opts)
-
-    try {
-      await this.bootstrapState.bootstrapPromise
-    } finally {
-      // Clear the promise once bootstrap is complete (success or failure)
-      this.bootstrapState.bootstrapPromise = null
-    }
-  }
-
-  private async performBootstrap(auth: Auth, opts: BootstrapOptions) {
-    try {
-      console.log('[reconcile] Bootstrapping reconcile system...')
-
-      // Create admin session for this process
-      const { headers, processId } = await createAndGetBAAdminSession({ auth })
-      this.bootstrapState.adminHeaders = headers
-      this.bootstrapState.processId = processId
-      this.bootstrapState.isBootstrapped = true
-
-      console.log(`[reconcile] Created admin session for process: ${processId}`)
-
-      this.init({
-        listBAUsersPage: (limit, offset) =>
-          listBAUsersPage(auth, limit, offset, this.bootstrapState.adminHeaders!),
-        listPayloadUsersPage,
-        syncUserToPayload,
-        deleteUserFromPayload,
-        prunePayloadOrphans: process.env.RECONCILE_PRUNE === 'true',
-        log: (m, x) => console.log(`[reconcile:${processId}] ${m}`, x ?? ''),
-      })
-
-      this.start({
-        tickMs: opts?.tickMs ?? 1000,
-        reconcileEveryMs: opts?.reconcileEveryMs ?? 30 * 60_000,
-      })
-
-      if (opts?.runOnBoot ?? true) {
-        queueMicrotask(() =>
-          this.seedFullReconcile().catch((err) =>
-            console.error(`[reconcile:${processId}] seed failed`, err),
-          ),
-        )
-      }
-
-      console.log(`[reconcile:${processId}] Bootstrap completed successfully`)
-    } catch (error) {
-      console.error('[reconcile] Bootstrap failed:', error)
-      this.bootstrapState.isBootstrapped = false // Reset flag on failure
-      throw error
-    }
-  }
-
-  // Reset bootstrap state (useful for testing)
-  resetBootstrapState() {
-    this.bootstrapState.isBootstrapped = false
-    this.bootstrapState.adminHeaders = null
-    this.bootstrapState.processId = null
-    this.bootstrapState.bootstrapPromise = null
-    console.log('[reconcile] Bootstrap state reset')
+  private async listBAUsersPage({ limit, offset }: { limit: number; offset: number }) {
+    // sort by newest (used) first
+    // when a delete is happening in the meantime, this will lead to some users not being listed (as the index changes)
+    // TODO: fix this by maintaining a delete list.
+    const total = await this.deps.internalAdapter.countTotalUsers()
+    const users = await this.deps.internalAdapter.listUsers(limit, offset, {
+      field: 'updatedAt',
+      direction: 'desc',
+    })
+    return { total, users }
   }
 
   // Get current instance info
   getInstanceInfo() {
     return {
       isBootstrapped: this.bootstrapState.isBootstrapped,
-      processId: this.bootstrapState.processId,
     }
   }
 
@@ -391,7 +323,10 @@ class Queue {
       let baTotal = 0
 
       do {
-        const { users: baUsers, total } = await this.deps.listBAUsersPage(pageSize, baOffset)
+        const { users: baUsers, total } = await this.listBAUsersPage({
+          limit: pageSize,
+          offset: baOffset,
+        })
         baTotal = total
 
         // Enqueue ensure tasks for this page with full-reconcile source
@@ -409,7 +344,12 @@ class Queue {
       let baTotal = 0
 
       do {
-        const { users: baUsers, total } = await this.deps.listBAUsersPage(pageSize, baOffset)
+        // TODO: make sure that we dont go past the window through deletes happening
+        // (As a user deletes, the total window size becomes smaller)
+        const { users: baUsers, total } = await this.listBAUsersPage({
+          limit: pageSize,
+          offset: baOffset,
+        })
         baTotal = total
 
         // Enqueue ensure tasks for this page with full-reconcile source
@@ -445,40 +385,3 @@ class Queue {
     }
   }
 }
-
-// Singleton & helpers
-export const reconcileQueue = new Queue()
-
-// Bootstrap function - main entry point
-export const bootstrapReconcile = (auth: Auth, opts?: BootstrapOptions) =>
-  reconcileQueue.bootstrap(auth, opts)
-
-// Legacy function for backward compatibility
-export const initReconcileQueue = (
-  deps: QueueDeps,
-  timers?: { tickMs?: number; reconcileEveryMs?: number },
-) => {
-  reconcileQueue.init(deps)
-  reconcileQueue.start(timers)
-}
-
-export const enqueueEnsure = (
-  u: BAUser,
-  priority = false,
-  source: TaskSource = 'user-operation',
-  reconcileId?: string,
-) => reconcileQueue.enqueueEnsure(u, priority, source, reconcileId)
-
-export const enqueueDelete = (
-  baId: string,
-  priority = false,
-  source: TaskSource = 'user-operation',
-  reconcileId?: string,
-) => reconcileQueue.enqueueDelete(baId, priority, source, reconcileId)
-
-export const seedFullReconcile = () => reconcileQueue.seedFullReconcile()
-export const queueStatus = () => reconcileQueue.status()
-
-// Bootstrap utility functions
-export const resetBootstrapState = () => reconcileQueue.resetBootstrapState()
-export const getInstanceInfo = () => reconcileQueue.getInstanceInfo()

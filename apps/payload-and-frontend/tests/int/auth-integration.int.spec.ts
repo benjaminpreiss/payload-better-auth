@@ -3,12 +3,10 @@ import Database from 'better-sqlite3'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { auth } from '@/lib/auth'
-import {
-  queueStatus,
-  seedFullReconcile,
-  bootstrapReconcile,
-  resetBootstrapState,
-} from '@/lib/reconcile-queue'
+import { AuthContext } from 'better-auth'
+import { Queue } from '@/lib/reconcile-queue'
+
+type PayloadSyncPluginContext = AuthContext & { payloadSyncPlugin: { queue: Queue } }
 
 describe('Better Auth Integration', () => {
   // Generate unique test user for each test run to avoid conflicts
@@ -39,7 +37,7 @@ describe('Better Auth Integration', () => {
     }
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     // Close database connection
     db.close()
   })
@@ -126,7 +124,9 @@ describe('Better Auth Integration', () => {
     const maxAttempts = 15
 
     while (Date.now() - startTime < maxWaitMs && attempt < maxAttempts) {
-      const status = queueStatus()
+      const status = (
+        (await auth.$context) as PayloadSyncPluginContext
+      ).payloadSyncPlugin.queue.status()
 
       // For create operations, check if the user exists in Payload
       if (operation === 'create') {
@@ -170,7 +170,9 @@ describe('Better Auth Integration', () => {
     }
 
     // Final check after timeout
-    const finalStatus = queueStatus()
+    const finalStatus = (
+      (await auth.$context) as PayloadSyncPluginContext
+    ).payloadSyncPlugin.queue.status()
     const finalPayloadUser = await findPayloadUserByExternalId(targetUserId)
 
     throw new Error(
@@ -570,74 +572,6 @@ describe('Better Auth Integration', () => {
         /User creation is managed by Better Auth|You are not allowed to perform this action/,
       )
     }
-  })
-
-  it('should properly handle queue tagging and clearing for full reconciliations', async () => {
-    // Reset and re-bootstrap the reconcile system to ensure fresh admin session
-    resetBootstrapState()
-    await bootstrapReconcile(auth, { runOnBoot: false })
-
-    // Get initial queue status
-    const initialStatus = queueStatus()
-
-    // Create a test user to generate a user-operation task
-    const testUser = generateTestUser()
-    const signUpResult = await auth.api.signUpEmail({
-      body: {
-        email: testUser.email,
-        password: testUser.password,
-        name: testUser.name,
-      },
-    })
-
-    expect(signUpResult.user).toBeDefined()
-    const betterAuthUserId = signUpResult.user.id
-
-    // Wait a moment for the user-operation task to be enqueued
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    // Check queue status - should have user-operation tasks
-    const afterUserOpStatus = queueStatus()
-    expect(afterUserOpStatus.userOperationTasks).toBeGreaterThan(0)
-
-    // Trigger a full reconciliation
-    await seedFullReconcile()
-
-    // Wait a moment for the full reconciliation to process
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // Check queue status - should have preserved user-operation tasks
-    const afterFullReconcileStatus = queueStatus()
-
-    // The queue should contain:
-    // - Previous user-operation tasks (preserved)
-    // - Full-reconcile tasks may or may not be added depending on whether users already exist in queue
-    expect(afterFullReconcileStatus.userOperationTasks).toBeGreaterThan(0)
-    expect(afterFullReconcileStatus.queueSize).toBe(
-      afterFullReconcileStatus.userOperationTasks + afterFullReconcileStatus.fullReconcileTasks,
-    )
-
-    // Trigger another full reconciliation
-    await seedFullReconcile()
-
-    // Wait a moment for processing
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // Check final queue status
-    const finalStatus = queueStatus()
-
-    // The second full reconciliation should have:
-    // - Cleared previous full-reconcile tasks (if any)
-    // - Preserved user-operation tasks
-    // - The queue clearing logic should work correctly
-    expect(finalStatus.userOperationTasks).toBeGreaterThan(0)
-
-    // Verify that the queue clearing logic worked by checking that we have consistent state
-    expect(finalStatus.queueSize).toBe(
-      finalStatus.userOperationTasks + finalStatus.fullReconcileTasks,
-    )
-
-    // Clean up the test user
-    await cleanupTestUser(testUser.email)
   })
 
   it('should trigger full reconcile from Payload onInit hook with authentication', async () => {

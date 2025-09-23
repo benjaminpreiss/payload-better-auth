@@ -1,0 +1,88 @@
+import React from 'react'
+import { EmailPasswordForm } from './EmailPasswordForm'
+
+interface AuthMethods {
+  authMethods: 'emailAndPassword'[]
+}
+
+async function fetchAuthMethods(): Promise<AuthMethods> {
+  try {
+    const baseURL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
+    const response = await fetch(`${baseURL}/api/auth/methods`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store', // Ensure fresh data on each request
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch auth methods: ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('Error fetching auth methods:', error)
+    // Return default fallback
+    return { authMethods: ['emailAndPassword'] }
+  }
+}
+
+export default async function BetterAuthLogin() {
+  const { authMethods } = await fetchAuthMethods()
+
+  return (
+    <div
+      className="better-auth-login"
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        padding: '2rem',
+      }}
+    >
+      <div
+        className="auth-container"
+        style={{
+          background: 'white',
+          padding: '2rem',
+          borderRadius: '8px',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          width: '100%',
+          maxWidth: '400px',
+        }}
+      >
+        <h2
+          className="auth-title"
+          style={{
+            textAlign: 'center',
+            marginBottom: '2rem',
+            fontSize: '1.5rem',
+            fontWeight: '600',
+            color: '#333',
+          }}
+        >
+          Sign In to Admin
+        </h2>
+
+        {authMethods.includes('emailAndPassword') && <EmailPasswordForm />}
+        {authMethods.length === 0 && (
+          <div
+            className="no-auth-methods"
+            style={{
+              textAlign: 'center',
+              padding: '2rem',
+              color: '#666',
+            }}
+          >
+            <p>No authentication methods are currently available.</p>
+            <p style={{ fontSize: '0.875rem', marginTop: '1rem' }}>
+              Please contact your administrator.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
