@@ -15,7 +15,7 @@ importers:
         version: 3.55.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@payloadcms/db-sqlite':
         specifier: 3.55.1
-        version: 3.55.1(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(kysely@0.28.7)(payload@3.55.1(graphql@16.11.0)(typescript@5.7.3))
+        version: 3.55.1(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(bun-types@1.2.22(@types/react@19.1.8))(kysely@0.28.7)(payload@3.55.1(graphql@16.11.0)(typescript@5.7.3))
       '@payloadcms/live-preview-react':
         specifier: 3.55.1
         version: 3.55.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -188,6 +188,16 @@ importers:
       vitest:
         specifier: 3.2.3
         version: 3.2.3(@types/debug@4.1.12)(@types/node@22.5.4)(jiti@1.21.7)(jsdom@26.1.0)(sass@1.77.4)(tsx@4.20.3)(yaml@2.8.1)
+
+  packages/payload-better-auth:
+    dependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.7.3
+    devDependencies:
+      bun-types:
+        specifier: latest
+        version: 1.2.22(@types/react@19.1.8)
 
 packages:
 
@@ -2947,6 +2957,11 @@ packages:
 
   buffer@5.6.0:
     resolution: {integrity: sha512-/gDYp/UtU0eA1ys8bOs9J6a+E/KWIY+DZ+Q2WESNUA0jFRsJOc0SNUO6xJ5SGA1xueg3NL65W6s+NY5l9cunuw==}
+
+  bun-types@1.2.22:
+    resolution: {integrity: sha512-hwaAu8tct/Zn6Zft4U9BsZcXkYomzpHJX28ofvx7k0Zz2HNz54n1n+tDgxoWFGB4PcFvJXJQloPhaV2eP3Q6EA==}
+    peerDependencies:
+      '@types/react': ^19
 
   busboy@1.6.0:
     resolution: {integrity: sha512-8SFQbg/0hQ9xy3UNTB0YEnsNBbWfhf7RtnzpL7TkBiTBRfrQ9Fxcnz7VJsleJpyp6rVLvXiuORqjlHi5q+PYuA==}
@@ -7358,13 +7373,13 @@ snapshots:
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
 
-  '@payloadcms/db-sqlite@3.55.1(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(kysely@0.28.7)(payload@3.55.1(graphql@16.11.0)(typescript@5.7.3))':
+  '@payloadcms/db-sqlite@3.55.1(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(bun-types@1.2.22(@types/react@19.1.8))(kysely@0.28.7)(payload@3.55.1(graphql@16.11.0)(typescript@5.7.3))':
     dependencies:
       '@libsql/client': 0.14.0
-      '@payloadcms/drizzle': 3.55.1(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(kysely@0.28.7)(payload@3.55.1(graphql@16.11.0)(typescript@5.7.3))
+      '@payloadcms/drizzle': 3.55.1(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(bun-types@1.2.22(@types/react@19.1.8))(kysely@0.28.7)(payload@3.55.1(graphql@16.11.0)(typescript@5.7.3))
       console-table-printer: 2.12.1
       drizzle-kit: 0.31.4
-      drizzle-orm: 0.44.2(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(kysely@0.28.7)
+      drizzle-orm: 0.44.2(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(bun-types@1.2.22(@types/react@19.1.8))(kysely@0.28.7)
       payload: 3.55.1(graphql@16.11.0)(typescript@5.7.3)
       prompts: 2.4.2
       to-snake-case: 1.0.0
@@ -7402,11 +7417,11 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@payloadcms/drizzle@3.55.1(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(kysely@0.28.7)(payload@3.55.1(graphql@16.11.0)(typescript@5.7.3))':
+  '@payloadcms/drizzle@3.55.1(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(bun-types@1.2.22(@types/react@19.1.8))(kysely@0.28.7)(payload@3.55.1(graphql@16.11.0)(typescript@5.7.3))':
     dependencies:
       console-table-printer: 2.12.1
       dequal: 2.0.3
-      drizzle-orm: 0.44.2(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(kysely@0.28.7)
+      drizzle-orm: 0.44.2(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(bun-types@1.2.22(@types/react@19.1.8))(kysely@0.28.7)
       payload: 3.55.1(graphql@16.11.0)(typescript@5.7.3)
       prompts: 2.4.2
       to-snake-case: 1.0.0
@@ -9029,6 +9044,11 @@ snapshots:
       base64-js: 1.5.1
       ieee754: 1.2.1
 
+  bun-types@1.2.22(@types/react@19.1.8):
+    dependencies:
+      '@types/node': 22.5.4
+      '@types/react': 19.1.8
+
   busboy@1.6.0:
     dependencies:
       streamsearch: 1.1.0
@@ -9320,11 +9340,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.44.2(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(kysely@0.28.7):
+  drizzle-orm@0.44.2(@libsql/client@0.14.0)(@types/better-sqlite3@7.6.13)(better-sqlite3@12.2.0)(bun-types@1.2.22(@types/react@19.1.8))(kysely@0.28.7):
     optionalDependencies:
       '@libsql/client': 0.14.0
       '@types/better-sqlite3': 7.6.13
       better-sqlite3: 12.2.0
+      bun-types: 1.2.22(@types/react@19.1.8)
       kysely: 0.28.7
 
   dunder-proto@1.0.1:
