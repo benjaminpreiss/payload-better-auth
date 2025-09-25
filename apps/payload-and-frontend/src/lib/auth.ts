@@ -1,8 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { admin, apiKey } from 'better-auth/plugins'
 import Database from 'better-sqlite3'
-import { reconcileQueuePlugin } from './betterAuthPlugin'
-import { deleteUserFromPayload, syncUserToPayload } from './sources'
+import { reconcileQueuePlugin, deleteUserFromPayload, syncUserToPayload } from 'payload-better-auth'
 
 // Use environment-specific database path
 const dbPath = process.env.BETTER_AUTH_DB_PATH || './better-auth.db'

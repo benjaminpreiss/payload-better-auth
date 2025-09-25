@@ -13,14 +13,14 @@ async function fetchAuthMethods(): Promise<AuthMethods> {
       headers: {
         'Content-Type': 'application/json',
       },
-      cache: 'no-store', // Ensure fresh data on each request
     })
 
     if (!response.ok) {
       throw new Error(`Failed to fetch auth methods: ${response.status}`)
     }
 
-    return await response.json()
+    const data = await response.json()
+    return data as AuthMethods
   } catch (error) {
     console.error('Error fetching auth methods:', error)
     // Return default fallback

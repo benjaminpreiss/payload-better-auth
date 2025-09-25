@@ -4,11 +4,7 @@
     "baseUrl": ".",
     "esModuleInterop": true,
     "target": "ES2022",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ES2022"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "allowJs": true,
     "skipLibCheck": true,
     "noEmit": true,
@@ -25,15 +21,9 @@
       }
     ],
     "paths": {
-      "@payload-config": [
-        "./src/payload.config.ts"
-      ],
-      "react": [
-        "./node_modules/@types/react"
-      ],
-      "@/*": [
-        "./src/*"
-      ],
+      "@payload-config": ["./src/payload.config.ts"],
+      "react": ["./node_modules/@types/react"],
+      "@/*": ["./src/*"]
     }
   },
   "include": [
@@ -45,7 +35,5 @@
     "next.config.js",
     "next-sitemap.config.cjs"
   ],
-  "exclude": [
-    "node_modules"
-  ],
+  "exclude": ["node_modules"]
 }
