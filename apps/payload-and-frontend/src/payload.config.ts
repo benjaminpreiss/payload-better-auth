@@ -4,47 +4,21 @@ import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import sharp from 'sharp' // sharp-import
 import path from 'path'
 import { buildConfig, PayloadRequest } from 'payload'
+import { betterAuthPayloadPlugin } from 'payload-better-auth'
 import { fileURLToPath } from 'url'
 
-import { Categories } from './collections/Categories'
-import { Media } from './collections/Media'
-import { Pages } from './collections/Pages'
-import { Posts } from './collections/Posts'
-import { Users } from './collections/Users'
-import { Footer } from './Footer/config'
-import { Header } from './Header/config'
-import { plugins } from './plugins'
-import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
-import { triggerFullReconcile } from './lib/payload-reconcile'
+import { lexicalEditor } from '@payloadcms/richtext-lexical'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
 export default buildConfig({
   admin: {
-    components: {
-      // The `BeforeLogin` component renders a message that you see while logging into your admin panel.
-      // Feel free to delete this at any time. Simply remove the line below.
-      beforeLogin: ['payload-better-auth#BetterAuthLogin'],
-      // The `BeforeDashboard` component renders the 'welcome' block that you see after logging into your admin panel.
-      // Feel free to delete this at any time. Simply remove the line below.
-      beforeDashboard: ['@/components/BeforeDashboard'],
-      views: {
-        login: {
-          Component: 'payload-better-auth#BetterAuthLogin', // RSC or 'use client' component
-          path: '/auth',
-          exact: true,
-        },
-      },
-    },
     importMap: {
       baseDir: path.resolve(dirname),
     },
-    routes: {
-      login: '/auth',
-    },
-    user: Users.slug,
+    //user: Users.slug,
     livePreview: {
       breakpoints: [
         {
@@ -69,18 +43,19 @@ export default buildConfig({
     },
   },
   // This config helps us configure global or default features that the other editors can inherit
-  editor: defaultLexical,
+  editor: lexicalEditor(),
   db: sqliteAdapter({
     client: {
       url: process.env.DATABASE_URI || '',
     },
   }),
-  collections: [Pages, Posts, Media, Categories, Users],
+  collections: [],
   cors: [getServerSideURL()].filter(Boolean),
-  globals: [Header, Footer],
+  globals: [],
   plugins: [
-    ...plugins,
-    // storage-adapter-placeholder
+    betterAuthPayloadPlugin({
+      authClientOptions: { baseURL: process.env.NEXT_PUBLIC_SERVER_URL },
+    }),
   ],
   secret: process.env.PAYLOAD_SECRET,
   sharp,
@@ -101,9 +76,5 @@ export default buildConfig({
       },
     },
     tasks: [],
-  },
-  async onInit(payload) {
-    // Trigger full reconcile on Payload startup
-    await triggerFullReconcile(payload)
   },
 })
