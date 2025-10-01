@@ -1,5 +1,5 @@
 // src/plugins/reconcile-queue-plugin.ts
-import type { AuthContext, BetterAuthPlugin } from 'better-auth'
+import type { AuthContext, BetterAuthPlugin, DeepPartial } from 'better-auth'
 import type { SanitizedConfig } from 'payload'
 
 import { APIError, createAuthEndpoint } from 'better-auth/api'
@@ -165,7 +165,7 @@ export const payloadBetterAuthPlugin = (
         opts,
       )
       return {
-        context: { payloadSyncPlugin: { queue } },
+        context: { payloadSyncPlugin: { queue } } as DeepPartial<Omit<AuthContext, 'options'>>,
         options: {
           databaseHooks: createDatabaseHooks({ config: opts.payloadConfig }),
           user: { deleteUser: { enabled: true } },
