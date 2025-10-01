@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { admin, apiKey } from 'better-auth/plugins'
 import Database from 'better-sqlite3'
-import { createDatabaseHooks, payloadBetterAuthPlugin } from 'payload-better-auth'
+import { payloadBetterAuthPlugin } from 'payload-better-auth'
 
 import buildConfig from '../payload.config.js'
 
@@ -12,13 +12,6 @@ export const auth = betterAuth({
   database: new Database(dbPath),
 
   emailAndPassword: { enabled: true },
-  user: {
-    deleteUser: {
-      enabled: true,
-    },
-  },
-  // Creations: DB hooks cover all Better-Auth–mediated user inserts
-  databaseHooks: createDatabaseHooks({ config: buildConfig }),
   plugins: [
     admin(), // Provides the listUsers API for user management
     payloadBetterAuthPlugin({

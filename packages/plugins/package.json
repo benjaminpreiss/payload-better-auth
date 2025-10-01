@@ -86,7 +86,7 @@
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
-    "better-auth": "^1.4.0-beta.3",
+    "better-auth": "^1.4.0-beta.5",
     "payload": "^3.37.0"
   },
   "engines": {

@@ -1,9 +1,10 @@
 // src/plugins/reconcile-queue-plugin.ts
-import type { AuthContext, BetterAuthPlugin, DeepPartial } from 'better-auth'
+import type { AuthContext, BetterAuthPlugin } from 'better-auth'
 import type { SanitizedConfig } from 'payload'
 
 import { APIError, createAuthEndpoint } from 'better-auth/api'
 
+import { createDatabaseHooks } from './databaseHooks.js'
 import { type InitOptions, Queue } from './reconcile-queue.js'
 import {
   type BAUser,
@@ -20,13 +21,13 @@ const defaultLog = (msg: string, extra?: any) => {
   console.log(`[reconcile] ${msg}`, extra ? JSON.stringify(extra, null, 2) : '')
 }
 
-export function payloadBetterAuthPlugin(
+export const payloadBetterAuthPlugin = (
   opts: {
     createAdmins?: { overwrite?: boolean; user: CreateAdminsUser }[]
     payloadConfig: Promise<SanitizedConfig>
     token: string // simple header token for admin endpoints
   } & InitOptions,
-): BetterAuthPlugin {
+): BetterAuthPlugin => {
   return {
     id: 'reconcile-queue-plugin',
     endpoints: {
@@ -163,8 +164,12 @@ export function payloadBetterAuthPlugin(
         },
         opts,
       )
-      return { context: { payloadSyncPlugin: { queue } } } as {
-        context: DeepPartial<Omit<AuthContext, 'options'>>
+      return {
+        context: { payloadSyncPlugin: { queue } },
+        options: {
+          databaseHooks: createDatabaseHooks({ config: opts.payloadConfig }),
+          user: { deleteUser: { enabled: true } },
+        },
       }
     },
   }
