@@ -17,15 +17,16 @@ type PayloadSyncPluginContext = { payloadSyncPlugin: { queue: Queue } } & AuthCo
 
 type CreateAdminsUser = Parameters<AuthContext['internalAdapter']['createUser']>['0']
 
-const defaultLog = (msg: string, extra?: any) => {
+const defaultLog = (msg: string, extra?: unknown) => {
   console.log(`[reconcile] ${msg}`, extra ? JSON.stringify(extra, null, 2) : '')
 }
 
 export const payloadBetterAuthPlugin = (
   opts: {
     createAdmins?: { overwrite?: boolean; user: CreateAdminsUser }[]
+    enableLogging?: boolean
     payloadConfig: Promise<SanitizedConfig>
-    token: string // simple header token for admin endpoints
+    token: string // simple header token for admin endpoints,
   } & InitOptions,
 ): BetterAuthPlugin => {
   return {
@@ -150,7 +151,9 @@ export const payloadBetterAuthPlugin = (
             }),
           )
         } catch (error) {
-          defaultLog('Failed to create Admin user', error)
+          if (opts.enableLogging) {
+            defaultLog('Failed to create Admin user', error)
+          }
         }
       }
 
@@ -159,7 +162,7 @@ export const payloadBetterAuthPlugin = (
           deleteUserFromPayload: createDeleteUserFromPayload(opts.payloadConfig),
           internalAdapter,
           listPayloadUsersPage: createListPayloadUsersPage(opts.payloadConfig),
-          log: defaultLog,
+          log: opts.enableLogging ? defaultLog : undefined,
           syncUserToPayload: createSyncUserToPayload(opts.payloadConfig),
         },
         opts,

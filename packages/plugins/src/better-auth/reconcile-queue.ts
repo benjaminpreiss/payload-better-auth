@@ -98,7 +98,9 @@ export class Queue {
     if (opts?.runOnBoot ?? true) {
       // Use setTimeout instead of queueMicrotask to give more time for initialization
       setTimeout(() => {
-        this.seedFullReconcile().catch((err) => console.error('[reconcile] seed failed', err))
+        this.seedFullReconcile().catch(
+          (err) => this.deps.log && this.deps.log('[reconcile] seed failed', err),
+        )
       }, 2000) // 2 second delay to allow Better Auth and Payload to fully initialize
     }
 
