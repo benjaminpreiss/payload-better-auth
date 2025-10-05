@@ -39,7 +39,7 @@ describe('Better Auth Integration', () => {
     }
   })
 
-  afterAll(async () => {
+  afterAll(() => {
     // Close database connection
     db.close()
   })
@@ -688,5 +688,106 @@ describe('Better Auth Integration', () => {
       // Restore the original fetch function
       global.fetch = originalFetch
     }
+  })
+
+  describe('New Plugin Features', () => {
+    it('should return available auth methods from /auth/methods endpoint', async () => {
+      // Test the new /auth/methods endpoint
+      const response = await fetch('http://localhost:3000/api/auth/auth/methods', {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'GET',
+      })
+
+      expect(response.ok).toBe(true)
+      const data = await response.json()
+
+      expect(data).toBeDefined()
+      expect(data.authMethods).toBeDefined()
+      expect(Array.isArray(data.authMethods)).toBe(true)
+
+      // Since emailAndPassword is enabled in the auth config, it should be included
+      expect(data.authMethods).toContain('emailAndPassword')
+    })
+
+    it('should handle locale in sign-up requests via middleware', async () => {
+      const testUser = generateTestUser()
+      const testLocale = 'de-DE'
+
+      try {
+        // Test user creation with locale header using fetch directly to better control headers
+        const response = await fetch('http://localhost:3000/api/auth/sign-up/email', {
+          body: JSON.stringify({
+            name: testUser.name,
+            email: testUser.email,
+            password: testUser.password,
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Locale': testLocale,
+          },
+          method: 'POST',
+        })
+
+        expect(response.ok).toBe(true)
+        const signUpResult = await response.json()
+
+        // Verify sign up was successful
+        expect(signUpResult).toBeDefined()
+        expect(signUpResult.user).toBeDefined()
+        expect(signUpResult.user.email).toBe(testUser.email)
+        expect(signUpResult.user.name).toBe(testUser.name)
+        expect(signUpResult.user.id).toBeDefined()
+
+        const userId = signUpResult.user.id
+
+        // Check if locale was stored in the database directly
+        const getUserStmt = db.prepare('SELECT locale FROM user WHERE id = ?')
+        const userRecord = getUserStmt.get(userId) as { locale: null | string } | undefined
+
+        expect(userRecord).toBeDefined()
+        expect(userRecord?.locale).toBe(testLocale)
+
+        // Clean up the test user
+        await cleanupTestUser(testUser.email)
+      } catch (error) {
+        // Clean up the test user even if test fails
+        await cleanupTestUser(testUser.email)
+        throw error
+      }
+    })
+
+    it('should handle sign-up without locale header gracefully', async () => {
+      const testUser = generateTestUser()
+
+      // Test user creation without locale header
+      const signUpResult = await auth.api.signUpEmail({
+        body: {
+          name: testUser.name,
+          email: testUser.email,
+          password: testUser.password,
+        },
+      })
+
+      // Verify sign up was successful
+      expect(signUpResult).toBeDefined()
+      expect(signUpResult.user).toBeDefined()
+      expect(signUpResult.user.email).toBe(testUser.email)
+      expect(signUpResult.user.name).toBe(testUser.name)
+      expect(signUpResult.user.id).toBeDefined()
+
+      const userId = signUpResult.user.id
+
+      // Check if locale is null/undefined in the database directly
+      const getUserStmt = db.prepare('SELECT locale FROM user WHERE id = ?')
+      const userRecord = getUserStmt.get(userId) as { locale: null | string } | undefined
+
+      expect(userRecord).toBeDefined()
+      expect(userRecord?.locale).toBeNull()
+
+      // Clean up the test user
+      await cleanupTestUser(testUser.email)
+    })
   })
 })

@@ -19,6 +19,7 @@ export async function triggerFullReconcile(payload: Payload): Promise<void> {
     payload.logger.info('Triggering full reconcile from Payload onInit...')
 
     const response = await fetch(reconcileUrl, {
+      body: JSON.stringify({}),
       headers: {
         'Content-Type': 'application/json',
         'x-reconcile-token': reconcileToken,

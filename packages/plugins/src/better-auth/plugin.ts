@@ -2,7 +2,8 @@
 import type { AuthContext, BetterAuthPlugin, DeepPartial } from 'better-auth'
 import type { SanitizedConfig } from 'payload'
 
-import { APIError, createAuthEndpoint } from 'better-auth/api'
+import { APIError } from 'better-auth/api'
+import { createAuthEndpoint, createAuthMiddleware } from 'better-auth/plugins'
 
 import { createDatabaseHooks } from './databaseHooks.js'
 import { type InitOptions, Queue } from './reconcile-queue.js'
@@ -110,6 +111,31 @@ export const payloadBetterAuthPlugin = (
           return json({ ok: true })
         },
       ),
+    },
+    hooks: {
+      before: [
+        {
+          handler: createAuthMiddleware(async (ctx) => {
+            const locale = ctx.getHeader('User-Locale')
+            return Promise.resolve({
+              context: { ...ctx, body: { ...ctx.body, locale: locale ?? undefined } },
+            })
+          }),
+          matcher: (context) => {
+            return context.path === '/sign-up/email'
+          },
+        },
+      ],
+    },
+    schema: {
+      user: {
+        fields: {
+          locale: {
+            type: 'string',
+            required: false,
+          },
+        },
+      },
     },
     // TODO: the queue must be destroyed on better auth instance destruction, as it utilizes timers.
     async init({ internalAdapter, password }) {

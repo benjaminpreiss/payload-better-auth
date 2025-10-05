@@ -13,7 +13,7 @@ To build your own Payload plugin, all you need is:
 
 1. Install: `pnpm i`
 2. Generate import map for payload: `cd packages/plugins/dev && pnpx payload generate:importmap`
-3. Initialize / migrate the better-auth database: `pnpx @better-auth/cli migrate --yes` (Also from `dev` directory)
+3. Initialize / migrate the better-auth database: `cd ../ && pnpx @better-auth/cli migrate --yes --config ./dev/lib/auth.ts` (Run from `dev` directory)
 4. Run dev: `pnpm dev`
 
 ## Background
