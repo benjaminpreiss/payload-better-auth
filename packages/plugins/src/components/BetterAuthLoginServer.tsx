@@ -1,16 +1,16 @@
 import type { createAuthClient } from 'better-auth/react'
 import type React from 'react'
+import type { AuthMethod } from 'src/better-auth/helpers.js'
 
 import { EmailPasswordFormClient } from './EmailPasswordFormClient.js'
 
-interface AuthMethods {
-  authMethods: 'emailAndPassword'[]
-}
-
-async function fetchAuthMethods(): Promise<AuthMethods> {
+export async function fetchAuthMethods({
+  baseUrl,
+}: {
+  baseUrl: string
+}): Promise<{ data: AuthMethod[]; error: null } | { data: null; error: Error }> {
   try {
-    const baseURL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
-    const response = await fetch(`${baseURL}/api/auth/auth/methods`, {
+    const response = await fetch(`${baseUrl}/api/auth/auth/methods`, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -22,20 +22,21 @@ async function fetchAuthMethods(): Promise<AuthMethods> {
     }
 
     const data = await response.json()
-    return data as AuthMethods
+    return { data, error: null } as { data: AuthMethod[]; error: null }
   } catch (error) {
     console.error('Error fetching auth methods:', error)
-    // Return default fallback
-    return { authMethods: ['emailAndPassword'] }
+    return { data: null, error: error as Error }
   }
 }
 
 export async function BetterAuthLoginServer({
   authClientOptions,
+  baseUrl,
 }: {
   authClientOptions: Parameters<typeof createAuthClient>['0']
+  baseUrl: string
 }) {
-  const { authMethods } = await fetchAuthMethods()
+  const authMethods = await fetchAuthMethods({ baseUrl })
 
   return (
     <div
@@ -67,10 +68,16 @@ export async function BetterAuthLoginServer({
           Sign In to Admin
         </h2>
 
-        {authMethods.includes('emailAndPassword') && (
-          <EmailPasswordFormClient authClientOptions={authClientOptions} />
+        {authMethods.data?.some(
+          (m) => m.method === 'emailAndPassword' || m.method === 'magicLink',
+        ) && (
+          <EmailPasswordFormClient
+            authClientOptions={authClientOptions}
+            authMethods={authMethods.data}
+            baseUrl={baseUrl}
+          />
         )}
-        {authMethods.length === 0 && (
+        {authMethods.data?.length === 0 && (
           <div
             style={{
               color: '#666',
@@ -79,6 +86,20 @@ export async function BetterAuthLoginServer({
             }}
           >
             <p>No authentication methods are currently available.</p>
+            <p style={{ fontSize: '0.875rem', marginTop: '1rem' }}>
+              Please contact your administrator.
+            </p>
+          </div>
+        )}
+        {authMethods.error && (
+          <div
+            style={{
+              color: '#666',
+              padding: '2rem',
+              textAlign: 'center',
+            }}
+          >
+            <p>Couldn't fetch authentication methods from better-auth</p>
             <p style={{ fontSize: '0.875rem', marginTop: '1rem' }}>
               Please contact your administrator.
             </p>

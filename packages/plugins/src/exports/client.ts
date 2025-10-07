@@ -1,1 +1,1 @@
-export { BeforeDashboardClient } from '../components/BeforeDashboardClient.js'
+export { VerifyEmailInfoViewClient } from '../components/VerifyEmailInfoViewClient.js'

@@ -5,6 +5,8 @@ import type { SanitizedConfig } from 'payload'
 import { APIError } from 'better-auth/api'
 import { createAuthEndpoint, createAuthMiddleware } from 'better-auth/plugins'
 
+import type { AuthMethod } from './helpers.js'
+
 import { createDatabaseHooks } from './databaseHooks.js'
 import { type InitOptions, Queue } from './reconcile-queue.js'
 import {
@@ -61,14 +63,21 @@ export const payloadBetterAuthPlugin = (
         '/auth/methods',
         { method: 'GET' },
         async ({ context, json }) => {
-          const authMethods: string[] = []
-
+          const authMethods: AuthMethod[] = []
           // Check if emailAndPassword is enabled, or if present at all (not present defaults to false)
           if (context.options.emailAndPassword?.enabled) {
-            authMethods.push('emailAndPassword')
+            authMethods.push({
+              method: 'emailAndPassword',
+              options: {
+                minPasswordLength: context.options.emailAndPassword.minPasswordLength ?? 0,
+              },
+            })
+          }
+          if (context.options.plugins?.some((p) => p.id === 'magic-link')) {
+            authMethods.push({ method: 'magicLink' })
           }
 
-          return await json({ authMethods })
+          return await json(authMethods)
         },
       ),
       deleteNow: createAuthEndpoint(

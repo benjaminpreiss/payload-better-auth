@@ -6,6 +6,7 @@ import { triggerFullReconcile } from '../utils/payload-reconcile.js'
 
 export type BetterAuthPayloadPluginOptions = {
   authClientOptions: Parameters<typeof createAuthClient>['0']
+  baseUrl: string
   disabled?: boolean
 }
 
@@ -55,7 +56,7 @@ export const betterAuthPayloadPlugin =
 
     config.admin.components.beforeLogin.push({
       path: `payload-better-auth/rsc#BetterAuthLoginServer`,
-      serverProps: { authClientOptions: pluginOptions.authClientOptions },
+      serverProps: pluginOptions,
     })
 
     if (!config.admin.components.views) {
@@ -71,6 +72,18 @@ export const betterAuthPayloadPlugin =
     } else {
       throw new Error(
         'Payload-better-auth plugin: admin.components.views.login property in config already set.',
+      )
+    }
+
+    if (!config.admin.components.views.verifyEmail) {
+      config.admin.components.views.verifyEmail = {
+        Component: 'payload-better-auth/client#VerifyEmailInfoViewClient', // RSC or 'use client' component
+        exact: true,
+        path: '/auth/verify-email',
+      }
+    } else {
+      throw new Error(
+        'Payload-better-auth plugin: admin.components.views.verifyEmail property in config already set.',
       )
     }
 

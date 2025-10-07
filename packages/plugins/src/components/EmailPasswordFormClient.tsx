@@ -1,8 +1,10 @@
 'use client'
 
 import type { ChangeEvent, default as React } from 'react'
+import type { AuthMethod } from 'src/better-auth/helpers.js'
 
 import { Button, FieldLabel, TextInput } from '@payloadcms/ui'
+import { magicLinkClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/react'
 import { useRouter } from 'next/navigation.js'
 import { useState } from 'react'
@@ -15,10 +17,20 @@ interface FormErrors {
 
 export function EmailPasswordFormClient({
   authClientOptions,
+  authMethods,
+  baseUrl,
 }: {
   authClientOptions: Parameters<typeof createAuthClient>['0']
+  authMethods: AuthMethod[]
+  baseUrl: string
 }) {
-  const authClient = createAuthClient(authClientOptions)
+  const authClient = createAuthClient({
+    ...authClientOptions,
+    plugins: [
+      ...(authClientOptions?.plugins?.filter((p) => p.id !== 'magic-link') ?? []),
+      magicLinkClient(),
+    ],
+  })
   const router = useRouter()
   const [errors, setErrors] = useState<FormErrors>({})
   const [isLoading, setIsLoading] = useState(false)
@@ -26,6 +38,13 @@ export function EmailPasswordFormClient({
   // Use useField hooks for each input to get proper setValue functions
   const [emailValue, setEmailValue] = useState('')
   const [passwordValue, setPasswordValue] = useState('')
+
+  const withEmailAndPassword = authMethods.find((m) => m.method === 'emailAndPassword')
+  const withMagicLink = authMethods.find((m) => m.method === 'magicLink')
+
+  if (!withEmailAndPassword && !withMagicLink) {
+    throw new Error("This Form can't render with neither email nor magicLink activated.")
+  }
 
   const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
     setEmailValue(event.target.value)
@@ -54,10 +73,13 @@ export function EmailPasswordFormClient({
       newErrors.email = 'Please enter a valid email address'
     }
 
-    if (!password) {
-      newErrors.password = 'Password is required'
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters'
+    if (withEmailAndPassword && !withMagicLink) {
+      if (!password) {
+        newErrors.password = 'Password is required'
+        // TODO: verify if minPasswordLength is also set if not actively specified
+      } else if (password.length < withEmailAndPassword.options.minPasswordLength) {
+        newErrors.password = `Password must be at least ${withEmailAndPassword.options.minPasswordLength} characters`
+      }
     }
 
     setErrors(newErrors)
@@ -75,24 +97,40 @@ export function EmailPasswordFormClient({
     setErrors({})
 
     try {
-      const result = await authClient.signIn.email({
-        email: String(emailValue || ''),
-        password: String(passwordValue || ''),
-      })
-
-      if (result.error) {
-        setErrors({
-          general: result.error.message || 'Sign in failed. Please check your credentials.',
+      if (withEmailAndPassword && passwordValue !== '') {
+        const result = await authClient.signIn.email({
+          email: String(emailValue || ''),
+          password: String(passwordValue || ''),
         })
-      } else {
-        // Successful sign in - redirect to admin
-        router.push('/admin')
-        router.refresh()
+
+        if (result.error) {
+          setErrors({
+            general: result.error.message || 'Sign in failed. Please check your credentials.',
+          })
+        } else {
+          // Successful sign in - redirect to admin
+          router.push('/admin')
+          router.refresh()
+        }
+      } else if (withMagicLink && passwordValue === '') {
+        const result = await authClient.signIn.magicLink({
+          callbackURL: `${baseUrl}/admin`,
+          email: String(emailValue || ''),
+        })
+
+        if (result.error) {
+          setErrors({
+            general: result.error.message || 'Sign in failed. Please check your credentials.',
+          })
+        } else {
+          // Successful sign in - redirect to admin
+          router.push('/admin/auth/verify-email')
+          router.refresh()
+        }
       }
     } catch (error) {
-      console.error('Sign in error:', error)
       setErrors({
-        general: 'An unexpected error occurred. Please try again.',
+        general: (error as Error).message,
       })
     } finally {
       setIsLoading(false)
@@ -113,6 +151,7 @@ export function EmailPasswordFormClient({
           onChange={handleEmailChange}
           path="email"
           readOnly={isLoading}
+          required
           value={emailValue || ''}
         />
         {errors.email && (
@@ -123,11 +162,16 @@ export function EmailPasswordFormClient({
       </div>
 
       <div className="form-field" style={{ marginBottom: '1.5rem' }}>
-        <FieldLabel htmlFor="password" label="Password" required />
+        <FieldLabel
+          htmlFor="password"
+          label={`Password ${withMagicLink && '(Optional)'}`}
+          required={!withMagicLink}
+        />
         <TextInput
           onChange={handlePasswordChange}
           path="password"
           readOnly={isLoading}
+          required={!withMagicLink}
           value={passwordValue || ''}
         />
         {errors.password && (
