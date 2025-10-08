@@ -704,11 +704,12 @@ describe('Better Auth Integration', () => {
       const data = await response.json()
 
       expect(data).toBeDefined()
-      expect(data.authMethods).toBeDefined()
-      expect(Array.isArray(data.authMethods)).toBe(true)
+      expect(Array.isArray(data)).toBe(true)
 
       // Since emailAndPassword is enabled in the auth config, it should be included
-      expect(data.authMethods).toContain('emailAndPassword')
+      // The endpoint returns an array of AuthMethod objects, so we need to check the method property
+      const authMethodNames = data.map((method: any) => method.method)
+      expect(authMethodNames).toContain('emailAndPassword')
     })
 
     it('should handle locale in sign-up requests via middleware', async () => {
