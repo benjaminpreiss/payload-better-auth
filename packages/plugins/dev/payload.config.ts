@@ -44,8 +44,9 @@ export default buildConfig({
   email: testEmailAdapter,
   plugins: [
     betterAuthPayloadPlugin({
-      authClientOptions: { baseURL: process.env.NEXT_PUBLIC_SERVER_URL },
-      baseUrl: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+      betterAuthClientOptions: {
+        baseURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+      },
     }),
   ],
   secret: process.env.PAYLOAD_SECRET || 'test-secret_key',
