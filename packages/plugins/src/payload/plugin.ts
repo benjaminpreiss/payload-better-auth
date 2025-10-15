@@ -57,7 +57,7 @@ export const betterAuthPayloadPlugin =
 
     config.admin.components.beforeLogin.push({
       path: `payload-better-auth/rsc#BetterAuthLoginServer`,
-      serverProps: pluginOptions,
+      serverProps: { authClientOptions: pluginOptions.betterAuthClientOptions },
     })
 
     if (!config.admin.components.views) {
