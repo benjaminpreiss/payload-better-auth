@@ -5,12 +5,12 @@ import type { AuthMethod } from 'src/better-auth/helpers.js'
 import { EmailPasswordFormClient } from './EmailPasswordFormClient.js'
 
 export async function fetchAuthMethods({
-  baseUrl,
+  betterAuthBaseUrl,
 }: {
-  baseUrl: string
+  betterAuthBaseUrl: string
 }): Promise<{ data: AuthMethod[]; error: null } | { data: null; error: Error }> {
   try {
-    const response = await fetch(`${baseUrl}/api/auth/auth/methods`, {
+    const response = await fetch(`${betterAuthBaseUrl}/api/auth/auth/methods`, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -31,12 +31,12 @@ export async function fetchAuthMethods({
 
 export async function BetterAuthLoginServer({
   authClientOptions,
-  baseUrl,
+  betterAuthBaseUrl,
 }: {
   authClientOptions: Parameters<typeof createAuthClient>['0']
-  baseUrl: string
+  betterAuthBaseUrl: string
 }) {
-  const authMethods = await fetchAuthMethods({ baseUrl })
+  const authMethods = await fetchAuthMethods({ betterAuthBaseUrl })
 
   return (
     <div
@@ -74,7 +74,6 @@ export async function BetterAuthLoginServer({
           <EmailPasswordFormClient
             authClientOptions={authClientOptions}
             authMethods={authMethods.data}
-            baseUrl={baseUrl}
           />
         )}
         {authMethods.data?.length === 0 && (

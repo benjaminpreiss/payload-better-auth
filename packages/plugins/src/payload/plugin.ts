@@ -6,7 +6,7 @@ import { triggerFullReconcile } from '../utils/payload-reconcile.js'
 
 export type BetterAuthPayloadPluginOptions = {
   authClientOptions: Parameters<typeof createAuthClient>['0']
-  baseUrl: string
+  betterAuthBaseUrl: string
   disabled?: boolean
 }
 
