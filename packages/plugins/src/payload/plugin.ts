@@ -1,19 +1,20 @@
-import type { createAuthClient } from 'better-auth/react'
 import type { Config } from 'payload'
+import type { BetterAuthLoginServerProps } from 'src/components/BetterAuthLoginServer.js'
 
 import { createUsersCollection } from '../collections/Users/index.js'
 import { triggerFullReconcile } from '../utils/payload-reconcile.js'
 
 export type BetterAuthPayloadPluginOptions = {
-  authClientOptions: Parameters<typeof createAuthClient>['0']
-  betterAuthBaseUrl: string
+  betterAuthClientOptions: BetterAuthLoginServerProps['authClientOptions']
   disabled?: boolean
 }
 
 export const betterAuthPayloadPlugin =
   (pluginOptions: BetterAuthPayloadPluginOptions) =>
   (config: Config): Config => {
-    const Users = createUsersCollection({ authClientOptions: pluginOptions.authClientOptions })
+    const Users = createUsersCollection({
+      authClientOptions: pluginOptions.betterAuthClientOptions,
+    })
     if (!config.collections) {
       config.collections = [Users]
     } else if (config.collections.find((col) => col.slug === 'users')) {

@@ -1,4 +1,4 @@
-import type { createAuthClient } from 'better-auth/react'
+import type { ClientOptions } from 'better-auth'
 import type React from 'react'
 import type { AuthMethod } from 'src/better-auth/helpers.js'
 
@@ -29,14 +29,12 @@ export async function fetchAuthMethods({
   }
 }
 
-export async function BetterAuthLoginServer({
-  authClientOptions,
-  betterAuthBaseUrl,
-}: {
-  authClientOptions: Parameters<typeof createAuthClient>['0']
-  betterAuthBaseUrl: string
-}) {
-  const authMethods = await fetchAuthMethods({ betterAuthBaseUrl })
+export type BetterAuthLoginServerProps = {
+  authClientOptions: { baseURL: string } & Omit<ClientOptions, 'baseURL'>
+}
+
+export async function BetterAuthLoginServer({ authClientOptions }: BetterAuthLoginServerProps) {
+  const authMethods = await fetchAuthMethods({ betterAuthBaseUrl: authClientOptions.baseURL })
 
   return (
     <div
