@@ -47,6 +47,7 @@ export default buildConfig({
       betterAuthClientOptions: {
         baseURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
       },
+      reconcileToken: process.env.RECONCILE_TOKEN,
     }),
   ],
   secret: process.env.PAYLOAD_SECRET || 'test-secret_key',

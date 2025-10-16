@@ -5,15 +5,17 @@ import type { AuthMethod } from 'src/better-auth/helpers.js'
 import { EmailPasswordFormClient } from './EmailPasswordFormClient.js'
 
 export async function fetchAuthMethods({
+  additionalHeaders,
   betterAuthBaseUrl,
 }: {
+  additionalHeaders?: HeadersInit
   betterAuthBaseUrl: string
 }): Promise<{ data: AuthMethod[]; error: null } | { data: null; error: Error }> {
+  const headers = new Headers(additionalHeaders)
+  headers.append('Content-Type', 'application/json')
   try {
     const response = await fetch(`${betterAuthBaseUrl}/api/auth/auth/methods`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       method: 'GET',
     })
 
@@ -34,7 +36,10 @@ export type BetterAuthLoginServerProps = {
 }
 
 export async function BetterAuthLoginServer({ authClientOptions }: BetterAuthLoginServerProps) {
-  const authMethods = await fetchAuthMethods({ betterAuthBaseUrl: authClientOptions.baseURL })
+  const authMethods = await fetchAuthMethods({
+    additionalHeaders: authClientOptions.fetchOptions?.headers,
+    betterAuthBaseUrl: authClientOptions.baseURL,
+  })
 
   return (
     <div

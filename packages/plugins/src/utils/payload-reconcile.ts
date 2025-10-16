@@ -4,26 +4,34 @@ import type { Payload } from 'payload'
  * Triggers a full reconcile operation via the Better Auth reconcile API
  * This is typically called during Payload initialization to ensure data consistency
  */
-export async function triggerFullReconcile(payload: Payload): Promise<void> {
+export async function triggerFullReconcile({
+  additionalHeaders,
+  betterAuthUrl,
+  payload,
+  reconcileToken,
+}: {
+  additionalHeaders?: HeadersInit
+  betterAuthUrl: string
+  payload: Payload
+  reconcileToken?: string
+}): Promise<void> {
   try {
-    const reconcileToken = process.env.RECONCILE_TOKEN
     if (!reconcileToken) {
-      payload.logger.warn('RECONCILE_TOKEN not set, skipping onInit reconcile trigger')
+      payload.logger.warn('reconcile token not set, skipping onInit reconcile trigger')
       return
     }
 
-    // Determine the better-auth server URL
-    const betterAuthUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
     const reconcileUrl = `${betterAuthUrl}/api/auth/reconcile/run`
 
     payload.logger.info('Triggering full reconcile from Payload onInit...')
 
+    const headers = new Headers(additionalHeaders)
+    headers.append('Content-Type', 'application/json')
+    headers.append('x-reconcile-token', reconcileToken)
+
     const response = await fetch(reconcileUrl, {
       body: JSON.stringify({}),
-      headers: {
-        'Content-Type': 'application/json',
-        'x-reconcile-token': reconcileToken,
-      },
+      headers,
       method: 'POST',
     })
 

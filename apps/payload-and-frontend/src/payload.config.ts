@@ -53,7 +53,7 @@ export default buildConfig({
   globals: [],
   plugins: [
     betterAuthPayloadPlugin({
-      authClientOptions: { baseURL: process.env.NEXT_PUBLIC_SERVER_URL },
+      betterAuthClientOptions: { baseURL: process.env.NEXT_PUBLIC_SERVER_URL },
     }),
   ],
   secret: process.env.PAYLOAD_SECRET,

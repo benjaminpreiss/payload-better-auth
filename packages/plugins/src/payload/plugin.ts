@@ -7,13 +7,16 @@ import { triggerFullReconcile } from '../utils/payload-reconcile.js'
 export type BetterAuthPayloadPluginOptions = {
   betterAuthClientOptions: BetterAuthLoginServerProps['authClientOptions']
   disabled?: boolean
+  reconcileToken?: string
 }
 
 export const betterAuthPayloadPlugin =
   (pluginOptions: BetterAuthPayloadPluginOptions) =>
   (config: Config): Config => {
+    const authClientOptions = pluginOptions.betterAuthClientOptions
+
     const Users = createUsersCollection({
-      authClientOptions: pluginOptions.betterAuthClientOptions,
+      authClientOptions,
     })
     if (!config.collections) {
       config.collections = [Users]
@@ -57,7 +60,7 @@ export const betterAuthPayloadPlugin =
 
     config.admin.components.beforeLogin.push({
       path: `payload-better-auth/rsc#BetterAuthLoginServer`,
-      serverProps: { authClientOptions: pluginOptions.betterAuthClientOptions },
+      serverProps: { authClientOptions },
     })
 
     if (!config.admin.components.views) {
@@ -107,7 +110,12 @@ export const betterAuthPayloadPlugin =
       if (incomingOnInit) {
         await incomingOnInit(payload)
       }
-      await triggerFullReconcile(payload)
+      await triggerFullReconcile({
+        additionalHeaders: pluginOptions.betterAuthClientOptions.fetchOptions?.headers,
+        betterAuthUrl: pluginOptions.betterAuthClientOptions.baseURL,
+        payload,
+        reconcileToken: pluginOptions.reconcileToken,
+      })
     }
 
     return config
