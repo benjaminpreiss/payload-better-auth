@@ -2,7 +2,20 @@ import type { ClientOptions } from 'better-auth'
 import type React from 'react'
 import type { AuthMethod } from 'src/better-auth/helpers.js'
 
+import { headers } from 'next/headers.js'
+
 import { EmailPasswordFormClient } from './EmailPasswordFormClient.js'
+
+async function getPayloadBaseUrl() {
+  const h = await headers()
+  // Prefer proxy-aware headers (Vercel, reverse proxies)
+  const proto = h.get('x-forwarded-proto') ?? 'http'
+  const host = h.get('x-forwarded-host') ?? h.get('host') // fallback for local dev
+  if (!host) {
+    return ''
+  } // or throw, depending on your needs
+  return `${proto}://${host}`
+}
 
 export async function fetchAuthMethods({
   additionalHeaders,
@@ -40,6 +53,7 @@ export async function BetterAuthLoginServer({ authClientOptions }: BetterAuthLog
     additionalHeaders: authClientOptions.fetchOptions?.headers,
     betterAuthBaseUrl: authClientOptions.baseURL,
   })
+  const payloadBaseUrl = await getPayloadBaseUrl()
 
   return (
     <div
@@ -77,6 +91,7 @@ export async function BetterAuthLoginServer({ authClientOptions }: BetterAuthLog
           <EmailPasswordFormClient
             authClientOptions={authClientOptions}
             authMethods={authMethods.data}
+            payloadBaseUrl={payloadBaseUrl}
           />
         )}
         {authMethods.data?.length === 0 && (
