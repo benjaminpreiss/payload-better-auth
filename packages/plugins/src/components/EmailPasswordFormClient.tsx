@@ -18,11 +18,9 @@ interface FormErrors {
 export function EmailPasswordFormClient({
   authClientOptions,
   authMethods,
-  payloadBaseUrl,
 }: {
   authClientOptions: Parameters<typeof createAuthClient>['0']
   authMethods: AuthMethod[]
-  payloadBaseUrl: string
 }) {
   const authClient = createAuthClient({
     ...authClientOptions,
@@ -114,7 +112,7 @@ export function EmailPasswordFormClient({
         }
       } else if (withMagicLink && passwordValue === '') {
         const result = await authClient.signIn.magicLink({
-          callbackURL: `${payloadBaseUrl}/admin`,
+          callbackURL: `${window.location.origin}/admin`,
           email: String(emailValue || ''),
         })
 
