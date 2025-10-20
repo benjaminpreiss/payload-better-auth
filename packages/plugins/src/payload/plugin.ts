@@ -54,22 +54,16 @@ export const betterAuthPayloadPlugin =
       config.admin.components = {}
     }
 
-    if (!config.admin.components.beforeLogin) {
-      config.admin.components.beforeLogin = []
-    }
-
-    config.admin.components.beforeLogin.push({
-      path: `payload-better-auth/rsc#BetterAuthLoginServer`,
-      serverProps: { authClientOptions },
-    })
-
     if (!config.admin.components.views) {
       config.admin.components.views = {}
     }
 
     if (!config.admin.components.views.login) {
       config.admin.components.views.login = {
-        Component: 'payload-better-auth/rsc#BetterAuthLoginServer', // RSC or 'use client' component
+        Component: {
+          path: 'payload-better-auth/rsc#BetterAuthLoginServer',
+          serverProps: { authClientOptions },
+        },
         exact: true,
         path: '/auth',
       }
