@@ -24,7 +24,8 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "scripts": {
     "build": "npm run copyfiles && npm run build:types && npm run build:swc",
