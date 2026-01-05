@@ -4,26 +4,50 @@ import type { AuthMethod } from 'src/better-auth/helpers.js'
 
 import { EmailPasswordFormClient } from './EmailPasswordFormClient.js'
 
+export type AuthClientOptions = { baseURL: string } & Omit<ClientOptions, 'baseURL'>
+
 export async function fetchAuthMethods({
   additionalHeaders,
   betterAuthBaseUrl,
+  debug = false,
 }: {
   additionalHeaders?: HeadersInit
   betterAuthBaseUrl: string
+  debug?: boolean
 }): Promise<{ data: AuthMethod[]; error: null } | { data: null; error: Error }> {
   const headers = new Headers(additionalHeaders)
   headers.append('Content-Type', 'application/json')
+  const url = `${betterAuthBaseUrl}/api/auth/auth/methods`
+
+  if (debug) {
+    console.log('[payload-better-auth] fetchAuthMethods: Attempting to fetch auth methods')
+    console.log('[payload-better-auth] fetchAuthMethods:   - URL:', url)
+    console.log('[payload-better-auth] fetchAuthMethods:   - betterAuthBaseUrl:', betterAuthBaseUrl)
+  }
+
   try {
-    const response = await fetch(`${betterAuthBaseUrl}/api/auth/auth/methods`, {
+    const response = await fetch(url, {
       headers,
       method: 'GET',
     })
 
+    if (debug) {
+      console.log('[payload-better-auth] fetchAuthMethods: Response received')
+      console.log('[payload-better-auth] fetchAuthMethods:   - status:', response.status)
+      console.log('[payload-better-auth] fetchAuthMethods:   - statusText:', response.statusText)
+    }
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch auth methods: ${response.status}`)
+      throw new Error(`Failed to fetch auth methods: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
+
+    if (debug) {
+      console.log('[payload-better-auth] fetchAuthMethods: Successfully fetched auth methods')
+      console.log('[payload-better-auth] fetchAuthMethods:   - methods count:', data?.length ?? 0)
+    }
+
     return { data, error: null } as { data: AuthMethod[]; error: null }
   } catch (error) {
     console.error('Error fetching auth methods:', error)
@@ -32,13 +56,29 @@ export async function fetchAuthMethods({
 }
 
 export type BetterAuthLoginServerProps = {
-  authClientOptions: { baseURL: string } & Omit<ClientOptions, 'baseURL'>
+  /**
+   * Enable debug logging for troubleshooting connection issues.
+   */
+  debug?: boolean
+  /**
+   * Auth client options for client-side requests (uses external/public URL).
+   */
+  externalAuthClientOptions: AuthClientOptions
+  /**
+   * Auth client options for server-side requests (uses internal URL).
+   */
+  internalAuthClientOptions: AuthClientOptions
 }
 
-export async function BetterAuthLoginServer({ authClientOptions }: BetterAuthLoginServerProps) {
+export async function BetterAuthLoginServer({
+  debug = false,
+  externalAuthClientOptions,
+  internalAuthClientOptions,
+}: BetterAuthLoginServerProps) {
   const authMethods = await fetchAuthMethods({
-    additionalHeaders: authClientOptions.fetchOptions?.headers,
-    betterAuthBaseUrl: authClientOptions.baseURL,
+    additionalHeaders: internalAuthClientOptions.fetchOptions?.headers,
+    betterAuthBaseUrl: internalAuthClientOptions.baseURL,
+    debug,
   })
 
   return (
@@ -75,7 +115,7 @@ export async function BetterAuthLoginServer({ authClientOptions }: BetterAuthLog
           (m) => m.method === 'emailAndPassword' || m.method === 'magicLink',
         ) && (
           <EmailPasswordFormClient
-            authClientOptions={authClientOptions}
+            authClientOptions={externalAuthClientOptions}
             authMethods={authMethods.data}
           />
         )}

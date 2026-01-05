@@ -1,11 +1,31 @@
+import type { ClientOptions } from 'better-auth'
 import type { Config } from 'payload'
-import type { BetterAuthLoginServerProps } from 'src/components/BetterAuthLoginServer.js'
 
 import { createUsersCollection } from '../collections/Users/index.js'
 import { triggerFullReconcile } from '../utils/payload-reconcile.js'
 
+export type BetterAuthClientOptions = {
+  /**
+   * The external base URL for better-auth, used for client-side requests (from the browser).
+   * This should be the publicly accessible URL.
+   * @example 'https://auth.example.com'
+   */
+  externalBaseURL: string
+  /**
+   * The internal base URL for better-auth, used for server-side requests.
+   * This is used when the server needs to reach better-auth internally (e.g., within a container network).
+   * @example 'http://auth-service:3000'
+   */
+  internalBaseURL: string
+} & Omit<ClientOptions, 'baseURL'>
+
 export type BetterAuthPayloadPluginOptions = {
-  betterAuthClientOptions: BetterAuthLoginServerProps['authClientOptions']
+  betterAuthClientOptions: BetterAuthClientOptions
+  /**
+   * Enable debug logging for troubleshooting connection issues.
+   * When enabled, detailed error information will be logged during auth method fetching.
+   */
+  debug?: boolean
   disabled?: boolean
   reconcileToken?: string
 }
@@ -13,10 +33,33 @@ export type BetterAuthPayloadPluginOptions = {
 export const betterAuthPayloadPlugin =
   (pluginOptions: BetterAuthPayloadPluginOptions) =>
   (config: Config): Config => {
-    const authClientOptions = pluginOptions.betterAuthClientOptions
+    const { externalBaseURL, internalBaseURL, ...restClientOptions } =
+      pluginOptions.betterAuthClientOptions
+    const debug = pluginOptions.debug ?? false
+
+    // Build internal and external auth client options
+    const internalAuthClientOptions = { ...restClientOptions, baseURL: internalBaseURL }
+    const externalAuthClientOptions = { ...restClientOptions, baseURL: externalBaseURL }
+
+    // Log plugin configuration at startup (excluding sensitive data)
+    if (debug) {
+      console.log('[payload-better-auth] Plugin initializing with configuration:')
+      console.log('[payload-better-auth]   - internalBaseURL:', internalBaseURL)
+      console.log('[payload-better-auth]   - externalBaseURL:', externalBaseURL)
+      console.log('[payload-better-auth]   - disabled:', pluginOptions.disabled ?? false)
+      console.log('[payload-better-auth]   - debug:', debug)
+      console.log(
+        '[payload-better-auth]   - reconcileToken:',
+        pluginOptions.reconcileToken ? '[REDACTED]' : 'not set',
+      )
+      console.log(
+        '[payload-better-auth]   - fetchOptions.headers:',
+        restClientOptions.fetchOptions?.headers ? '[configured]' : 'not set',
+      )
+    }
 
     const Users = createUsersCollection({
-      authClientOptions,
+      authClientOptions: internalAuthClientOptions,
     })
     if (!config.collections) {
       config.collections = [Users]
@@ -62,7 +105,11 @@ export const betterAuthPayloadPlugin =
       config.admin.components.views.login = {
         Component: {
           path: 'payload-better-auth/rsc#BetterAuthLoginServer',
-          serverProps: { authClientOptions },
+          serverProps: {
+            debug,
+            externalAuthClientOptions,
+            internalAuthClientOptions,
+          },
         },
         exact: true,
         path: '/auth',
@@ -105,8 +152,8 @@ export const betterAuthPayloadPlugin =
         await incomingOnInit(payload)
       }
       await triggerFullReconcile({
-        additionalHeaders: pluginOptions.betterAuthClientOptions.fetchOptions?.headers,
-        betterAuthUrl: pluginOptions.betterAuthClientOptions.baseURL,
+        additionalHeaders: restClientOptions.fetchOptions?.headers,
+        betterAuthUrl: internalBaseURL,
         payload,
         reconcileToken: pluginOptions.reconcileToken,
       })

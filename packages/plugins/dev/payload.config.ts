@@ -45,7 +45,9 @@ export default buildConfig({
   plugins: [
     betterAuthPayloadPlugin({
       betterAuthClientOptions: {
-        baseURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+        // In local development, internal and external URLs are typically the same
+        externalBaseURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+        internalBaseURL: process.env.INTERNAL_SERVER_URL || 'http://localhost:3000',
       },
       reconcileToken: process.env.RECONCILE_TOKEN,
     }),
