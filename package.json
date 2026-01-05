@@ -4,10 +4,14 @@
 		"test": "pnpm run -r test",
 		"test:int": "pnpm run -r test:int",
 		"test:int-with-wait": "pnpm run -r test:int-with-wait",
-		"dev": "pnpm -r dev"
+		"dev": "pnpm -r dev",
+		"prepare": "husky"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
-	"packageManager": "pnpm@10.16.1"
+	"packageManager": "pnpm@10.16.1",
+	"devDependencies": {
+		"husky": "^9.1.7"
+	}
 }

@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../src/better-auth/helpers.ts"],"sourcesContent":["export type AuthMethod =\n  | { method: 'emailAndPassword'; options: { minPasswordLength: number } }\n  | { method: 'magicLink' }\n"],"names":[],"mappings":"AAAA,WAE2B"}

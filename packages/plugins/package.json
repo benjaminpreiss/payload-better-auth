@@ -43,7 +43,6 @@
     "lint": "eslint",
     "lint:fix": "eslint ./src --fix",
     "maildev": "maildev --smtp=1025 --web=1080",
-    "prepare": "npm run build",
     "prepublishOnly": "npm run clean && npm run build",
     "test": "npm run test:int && npm run test:e2e",
     "test:e2e": "playwright test",
