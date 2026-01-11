@@ -1,3 +1,10 @@
+## [1.1.5](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.4...v1.1.5) (2026-01-11)
+
+
+### Bug Fixes
+
+* enable npmPublish in semantic-release ([1f54eb1](https://github.com/benjaminpreiss/payload-better-auth/commit/1f54eb10d2b40e730540ae9a3eb7f7695228800e))
+
 ## [1.1.4](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.3...v1.1.4) (2026-01-11)
 
 
