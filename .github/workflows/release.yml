@@ -29,7 +29,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
@@ -44,5 +44,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HUSKY: 0
           NPM_CONFIG_PROVENANCE: true
+          npm_config_ignore_scripts: true
         run: pnpm exec semantic-release
 
