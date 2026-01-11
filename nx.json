@@ -22,6 +22,23 @@
         "{projectRoot}/tsconfig.json",
         "{projectRoot}/dev/tsconfig.json"
       ]
+    },
+    "_test": {
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/dev/**/*"]
+    },
+    "_test:int": {
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/dev/**/*"]
+    },
+    "_test:e2e": {
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/dev/**/*"]
+    },
+    "_dev:build": {
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/dev/**/*"],
+      "outputs": ["{projectRoot}/dev/.next"]
     }
   },
   "defaultBase": "main"
