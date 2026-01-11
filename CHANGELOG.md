@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.0...v1.1.1) (2026-01-11)
+
+
+### Performance Improvements
+
+* add nx caching for tests and dev build ([7e7e6d1](https://github.com/benjaminpreiss/payload-better-auth/commit/7e7e6d18ed30d9beefa2621851171568e2bc84d6))
+
 # [1.1.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.0.0...v1.1.0) (2026-01-11)
 
 
