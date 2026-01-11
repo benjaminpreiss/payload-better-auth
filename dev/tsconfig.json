@@ -1,6 +1,6 @@
 {
   "extends": "../tsconfig.json",
-  "exclude": [],
+  "exclude": [".next"],
   "include": [
     "**/*.js",
     "**/*.jsx",
@@ -14,6 +14,8 @@
     ".next/types/**/*.ts"
   ],
   "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "baseUrl": "./",
     "paths": {
       "@payload-config": ["./payload.config.ts"],

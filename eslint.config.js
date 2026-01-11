@@ -15,6 +15,7 @@ export const defaultESLintIgnores = [
   '**/README.md',
   '**/eslint.config.js',
   '**/payload-types.ts',
+  '**/*.d.ts', // ignore declaration files
   '**/dist/',
   '**/.yarn/',
   '**/build/',
@@ -23,22 +24,35 @@ export const defaultESLintIgnores = [
 ]
 
 export default [
+  {
+    ignores: defaultESLintIgnores,
+  },
   ...payloadEsLintConfig,
   {
     rules: {
       'no-restricted-exports': 'off',
     },
   },
+  // Config for ./src files - uses root tsconfig.json
   {
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
     languageOptions: {
       parserOptions: {
         sourceType: 'module',
         ecmaVersion: 'latest',
-        projectService: {
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 40,
-          allowDefaultProject: ['scripts/*.ts', '*.js', '*.mjs', '*.spec.ts', '*.d.ts'],
-        },
-        // projectService: true,
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  // Config for ./dev files - uses dev/tsconfig.json
+  {
+    files: ['dev/**/*.ts', 'dev/**/*.tsx'],
+    languageOptions: {
+      parserOptions: {
+        sourceType: 'module',
+        ecmaVersion: 'latest',
+        project: './dev/tsconfig.json',
         tsconfigRootDir: import.meta.dirname,
       },
     },

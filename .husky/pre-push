@@ -2,7 +2,11 @@
 
 # Lint the codebase
 echo "Running lint..."
-pnpm run lint || exit 1
+if ! pnpm run lint; then
+  echo ""
+  echo "Hint: Try running 'pnpm run lint:fix:all' to auto-fix issues"
+  exit 1
+fi
 
 # Type check
 echo "Running type check..."

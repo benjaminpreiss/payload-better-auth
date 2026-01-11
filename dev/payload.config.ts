@@ -39,6 +39,7 @@ export default buildConfig({
     client: {
       url: process.env.DATABASE_URI || 'file:./payload.db',
     },
+    migrationDir: path.resolve(dirname, 'migrations'),
   }),
   editor: lexicalEditor(),
   email: testEmailAdapter,
