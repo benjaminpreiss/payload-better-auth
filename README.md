@@ -95,10 +95,39 @@ The dev server starts at [http://localhost:3000](http://localhost:3000) with a m
 
 This project uses [Husky](https://typicode.github.io/husky/) for Git hooks:
 
-- **pre-commit**: Automatically builds the plugin and stages the `dist/` folder
+- **pre-commit**: Builds the plugin and stages `dist/`, blocks manual version changes
 - **pre-push**: Runs lint, typecheck, and tests before pushing
+- **commit-msg**: Validates commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
 
 When you're happy with your changes, just commit — the build is handled for you!
+
+### Versioning & Releases
+
+This project uses [semantic-release](https://semantic-release.gitbook.io/) for automated versioning. **Do not manually edit the `version` field in `package.json`** — it will be rejected by the pre-commit hook.
+
+Versions are determined automatically from your commit messages:
+
+| Commit Type | Version Bump | Example |
+|-------------|--------------|---------|
+| `fix:` | Patch (1.0.0 → 1.0.1) | `fix: resolve login redirect bug` |
+| `feat:` | Minor (1.0.0 → 1.1.0) | `feat: add OAuth provider support` |
+| `feat!:` or `BREAKING CHANGE:` | Major (1.0.0 → 2.0.0) | `feat!: redesign auth API` |
+
+When you push to `main`, the CI will automatically:
+1. Analyze commits since the last release
+2. Determine the next version
+3. Update `package.json` and `CHANGELOG.md`
+4. Create a Git tag and GitHub Release
+
+#### Installing Specific Versions
+
+```bash
+# Latest
+pnpm add github:benjaminpreiss/payload-better-auth
+
+# Specific version
+pnpm add github:benjaminpreiss/payload-better-auth#v1.2.0
+```
 
 ### Available Scripts
 

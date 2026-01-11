@@ -1,5 +1,30 @@
 #!/bin/sh
 
+# Check if package.json version was manually modified
+# This is not allowed as versions are managed by semantic-release
+if git diff --cached --name-only | grep -q "^package.json$"; then
+  # Get the staged version
+  STAGED_VERSION=$(git show :package.json | grep '"version"' | head -1 | sed 's/.*: *"\([^"]*\)".*/\1/')
+  # Get the current committed version
+  CURRENT_VERSION=$(git show HEAD:package.json 2>/dev/null | grep '"version"' | head -1 | sed 's/.*: *"\([^"]*\)".*/\1/')
+  
+  if [ -n "$CURRENT_VERSION" ] && [ "$STAGED_VERSION" != "$CURRENT_VERSION" ]; then
+    echo "❌ Error: Manual version changes in package.json are not allowed."
+    echo ""
+    echo "   This project uses semantic-release for automated versioning."
+    echo "   Versions are determined by your commit messages:"
+    echo ""
+    echo "   • fix: ...     → patch bump (1.0.0 → 1.0.1)"
+    echo "   • feat: ...    → minor bump (1.0.0 → 1.1.0)"
+    echo "   • feat!: ...   → major bump (1.0.0 → 2.0.0)"
+    echo ""
+    echo "   To undo your version change:"
+    echo "   git checkout package.json"
+    echo ""
+    exit 1
+  fi
+fi
+
 # Build the plugin
 pnpm run build
 
