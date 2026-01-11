@@ -1,3 +1,10 @@
+## [1.1.4](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.3...v1.1.4) (2026-01-11)
+
+
+### Bug Fixes
+
+* use Node 24 with npm 11 for better OIDC trusted publishing ([1502c07](https://github.com/benjaminpreiss/payload-better-auth/commit/1502c076d6010fc68e9878fa378ee5c6ce9a9931))
+
 ## [1.1.3](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.2...v1.1.3) (2026-01-11)
 
 
