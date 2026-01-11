@@ -1,1 +1,7 @@
-pnpm --filter payload-better-auth run build
+#!/bin/sh
+
+# Build the plugin
+pnpm run build
+
+# Stage the build output
+git add dist/

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Lint the codebase
+echo "Running lint..."
+pnpm run lint || exit 1
+
+# Type check
+echo "Running type check..."
+pnpm run typecheck || exit 1
+
+# Run tests
+echo "Running tests..."
+pnpm run test || exit 1
+
+echo "All checks passed!"
+
+

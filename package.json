@@ -1,17 +1,153 @@
 {
-	"main": "index.js",
-	"scripts": {
-		"test": "pnpm run -r test",
-		"test:int": "pnpm run -r test:int",
-		"test:int-with-wait": "pnpm run -r test:int-with-wait",
-		"dev": "pnpm -r dev",
-		"prepare": "husky"
-	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
-	"packageManager": "pnpm@10.16.1",
-	"devDependencies": {
-		"husky": "^9.1.7"
-	}
+  "name": "payload-better-auth",
+  "version": "1.0.14",
+  "description": "A Payload CMS plugin that integrates Better Auth for seamless user authentication and management",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "import": "./dist/exports/client.js",
+      "types": "./dist/exports/client.d.ts",
+      "default": "./dist/exports/client.js"
+    },
+    "./rsc": {
+      "import": "./dist/exports/rsc.js",
+      "types": "./dist/exports/rsc.d.ts",
+      "default": "./dist/exports/rsc.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "pnpm run copyfiles && pnpm run build:types && pnpm run build:swc",
+    "build:swc": "swc ./src -d ./dist --config-file .swcrc --strip-leading-paths",
+    "build:types": "tsc --outDir dist --rootDir ./src",
+    "clean": "rimraf {dist,*.tsbuildinfo}",
+    "copyfiles": "copyfiles -u 1 \"src/**/*.{html,css,scss,ttf,woff,woff2,eot,svg,jpg,png,json}\" dist/",
+    "dev": "concurrently -k -n \"WEB,MAIL\" -c \"auto\" \"pnpm run dev:original\" \"pnpm run maildev\"",
+    "dev:build": "dotenv -e ./dev/.env.test -- next build dev",
+    "dev:original": "dotenv -e ./dev/.env.development -- next dev dev --turbo",
+    "dev:start": "dotenv -e ./dev/.env.test -- next start dev",
+    "dev:generate-importmap": "pnpm run dev:payload generate:importmap",
+    "dev:generate-types": "pnpm run dev:payload generate:types",
+    "dev:payload": "dotenv -e ./dev/.env.development -- cross-env PAYLOAD_CONFIG_PATH=./dev/payload.config.ts payload",
+    "generate:importmap": "pnpm run dev:generate-importmap",
+    "generate:types": "pnpm run dev:generate-types",
+    "db:reset": "rimraf ./payload.db ./better-auth.db",
+    "db:reset:test": "rimraf ./dev/tests/test-payload.db ./dev/tests/test-better-auth.db",
+    "payload:migrate": "pnpm run dev:payload -- migrate:create --skip-empty && pnpm run dev:payload -- migrate",
+    "payload:migrate:test": "dotenv -e ./dev/.env.test -- cross-env PAYLOAD_CONFIG_PATH=./dev/payload.config.ts payload migrate:create --skip-empty && dotenv -e ./dev/.env.test -- cross-env PAYLOAD_CONFIG_PATH=./dev/payload.config.ts payload migrate",
+    "better-auth:migrate": "dotenv -e ./dev/.env.development -- better-auth migrate --yes --config ./dev/lib/auth.ts",
+    "better-auth:migrate:test": "dotenv -e ./dev/.env.test -- better-auth migrate --yes --config ./dev/lib/auth.ts",
+    "reset": "pnpm run db:reset && pnpm run payload:migrate && pnpm run better-auth:migrate",
+    "reset:test": "pnpm run db:reset:test && pnpm run payload:migrate:test && pnpm run better-auth:migrate:test",
+    "lint": "eslint",
+    "lint:fix": "eslint ./src --fix",
+    "maildev": "maildev --smtp=1025 --web=1080",
+    "prepare": "husky",
+    "prepublishOnly": "pnpm run clean && pnpm run build",
+    "test": "pnpm run test:int && pnpm run test:e2e",
+    "test:e2e": "pnpm run dev:build && dotenv -e ./dev/.env.test -- playwright test",
+    "test:int": "pnpm run test:setup && dotenv -e ./dev/.env.test -- vitest run",
+    "test:setup": "pnpm run reset:test",
+    "typecheck": "tsc --noEmit -p ./dev/tsconfig.json",
+    "test:int-with-wait": "dotenv -e ./dev/.env.test -- concurrently --success first -k -n \"dev,test\" \"pnpm run dev\" \"sh -lc 'until curl -fsS http://127.0.0.1:3000/admin >/dev/null; do sleep 0.25; done; pnpm run test:int'\""
+  },
+  "devDependencies": {
+    "@better-auth/cli": "^1.4.10",
+    "@eslint/eslintrc": "^3.3.3",
+    "@payloadcms/db-mongodb": "^3.70.0",
+    "@payloadcms/db-postgres": "^3.70.0",
+    "@payloadcms/db-sqlite": "^3.70.0",
+    "@payloadcms/eslint-config": "^3.28.0",
+    "@payloadcms/next": "^3.70.0",
+    "@payloadcms/richtext-lexical": "^3.70.0",
+    "@payloadcms/ui": "^3.70.0",
+    "@playwright/test": "^1.57.0",
+    "@swc-node/register": "1.11.1",
+    "@swc/cli": "0.7.9",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.0.6",
+    "@types/nodemailer": "^7.0.5",
+    "@types/react": "19.2.8",
+    "@types/react-dom": "19.2.3",
+    "better-auth": "^1.4.10",
+    "better-sqlite3": "^12.6.0",
+    "concurrently": "^9.2.1",
+    "copyfiles": "2.4.1",
+    "cross-env": "^10.1.0",
+    "dotenv-cli": "^11.0.0",
+    "drizzle-orm": "^0.44.0",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "16.1.1",
+    "execa": "^9.6.1",
+    "graphql": "^16.12.0",
+    "husky": "^9.1.7",
+    "maildev": "^2.2.1",
+    "mongodb-memory-server": "11.0.1",
+    "next": "16.1.1",
+    "nodemailer": "^7.0.12",
+    "open": "^11.0.0",
+    "payload": "^3.70.0",
+    "prettier": "^3.7.4",
+    "qs-esm": "7.0.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "rimraf": "6.1.2",
+    "sharp": "0.34.5",
+    "sort-package-json": "^3.6.0",
+    "typescript": "5.9.3",
+    "vite-tsconfig-paths": "^6.0.4",
+    "vitest": "^4.0.16"
+  },
+  "peerDependencies": {
+    "better-auth": "^1.4.10",
+    "payload": "^3.37.0"
+  },
+  "packageManager": "pnpm@10.16.1",
+  "engines": {
+    "node": "^18.20.2 || >=20.9.0",
+    "pnpm": "^9 || ^10"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./client": {
+        "import": "./dist/exports/client.js",
+        "types": "./dist/exports/client.d.ts",
+        "default": "./dist/exports/client.js"
+      },
+      "./rsc": {
+        "import": "./dist/exports/rsc.js",
+        "types": "./dist/exports/rsc.d.ts",
+        "default": "./dist/exports/rsc.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "^0.44.0"
+    },
+    "onlyBuiltDependencies": [
+      "sharp",
+      "esbuild",
+      "unrs-resolver",
+      "better-sqlite3"
+    ]
+  }
 }
