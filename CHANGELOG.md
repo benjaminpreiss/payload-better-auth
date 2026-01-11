@@ -1,3 +1,42 @@
+# [2.0.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.6...v2.0.0) (2026-01-11)
+
+
+* feat!: redesign sync architecture with SecondaryStorage and EventBus ([3fd85d9](https://github.com/benjaminpreiss/payload-better-auth/commit/3fd85d98319bf847059ab8af3fcbe99d560df401))
+
+
+### BREAKING CHANGES
+
+* Storage and EventBus are now required plugin options.
+Removed InMemorySyncAdapter, InMemoryEventBus, and LMDB implementations.
+
+Architecture changes:
+- SecondaryStorage: Minimal KV interface (get/set/delete) for sessions,
+  timestamps, and nonces. Implementations: SQLite (dev), Redis (prod)
+- EventBus: Timestamp-based coordination between plugins.
+  Implementations: SQLite polling (dev), Redis Pub/Sub (prod)
+- Queue-based sync: All user operations go through reconcile queue
+  with retry logic (no more direct sync or EventBus user events)
+- Direct session validation: Payload reads sessions from storage,
+  no HTTP calls to Better Auth
+
+Key improvements:
+- Instant session invalidation via shared storage
+- Horizontal scaling with Redis adapters
+- HMR-resilient with deduplicated logger
+- SQLite adapters throw in staging/production environments
+
+New exports:
+- payload-better-auth/storage (SecondaryStorage, SQLite, Redis)
+- payload-better-auth/eventBus (EventBus, SQLite polling, Redis Pub/Sub)
+
+Removed:
+- InMemorySyncAdapter, InMemoryEventBus, LmdbStorage
+- Unused: verifySignature, createSignature, getPayloadCached,
+  createAttachExternalIdInPayload, UserEvent types
+- Empty directories: src/types/, src/collections/BetterAuthUsers/
+
+Updated README and MANUAL with new architecture documentation.
+
 ## [1.1.6](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.5...v1.1.6) (2026-01-11)
 
 
