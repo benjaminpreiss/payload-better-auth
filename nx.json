@@ -8,11 +8,20 @@
     },
     "_lint": {
       "cache": true,
-      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/dev/**/*", "{projectRoot}/eslint.config.js"]
+      "inputs": [
+        "{projectRoot}/src/**/*",
+        "{projectRoot}/dev/**/*",
+        "{projectRoot}/eslint.config.js"
+      ]
     },
     "_typecheck": {
       "cache": true,
-      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/dev/**/*", "{projectRoot}/tsconfig.json", "{projectRoot}/dev/tsconfig.json"]
+      "inputs": [
+        "{projectRoot}/src/**/*",
+        "{projectRoot}/dev/**/*",
+        "{projectRoot}/tsconfig.json",
+        "{projectRoot}/dev/tsconfig.json"
+      ]
     }
   },
   "defaultBase": "main"
