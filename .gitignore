@@ -53,3 +53,6 @@ payload.db
 
 # Test databases
 dev/tests/*.db
+
+# Nx cache
+.nx/

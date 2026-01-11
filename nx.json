@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "targetDefaults": {
+    "_build": {
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/tsconfig.json", "{projectRoot}/.swcrc"],
+      "outputs": ["{projectRoot}/dist"]
+    },
+    "_lint": {
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/dev/**/*", "{projectRoot}/eslint.config.js"]
+    },
+    "_typecheck": {
+      "cache": true,
+      "inputs": ["{projectRoot}/src/**/*", "{projectRoot}/dev/**/*", "{projectRoot}/tsconfig.json", "{projectRoot}/dev/tsconfig.json"]
+    }
+  },
+  "defaultBase": "main"
+}

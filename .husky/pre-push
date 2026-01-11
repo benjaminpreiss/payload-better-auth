@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Lint the codebase
+# Lint the codebase (with Nx caching)
 echo "Running lint..."
 if ! pnpm run lint; then
   echo ""
@@ -8,7 +8,7 @@ if ! pnpm run lint; then
   exit 1
 fi
 
-# Type check
+# Type check (with Nx caching)
 echo "Running type check..."
 pnpm run typecheck || exit 1
 
