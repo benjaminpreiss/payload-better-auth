@@ -1,8 +1,17 @@
 import { createUsersCollection } from '../collections/Users/index';
-import { triggerFullReconcile } from '../utils/payload-reconcile';
+import { createDeduplicatedLogger } from '../shared/deduplicatedLogger';
+// Key prefixes for storage
+const TIMESTAMP_PREFIX = 'timestamp:';
 export const betterAuthPayloadPlugin = (pluginOptions)=>(config)=>{
         const { externalBaseURL, internalBaseURL, ...restClientOptions } = pluginOptions.betterAuthClientOptions;
         const debug = pluginOptions.debug ?? false;
+        const { eventBus, storage } = pluginOptions;
+        // Create deduplicated logger
+        const logger = createDeduplicatedLogger({
+            enabled: debug,
+            prefix: '[payload]',
+            storage
+        });
         // Build internal and external auth client options
         const internalAuthClientOptions = {
             ...restClientOptions,
@@ -12,18 +21,10 @@ export const betterAuthPayloadPlugin = (pluginOptions)=>(config)=>{
             ...restClientOptions,
             baseURL: externalBaseURL
         };
-        // Log plugin configuration at startup (excluding sensitive data)
-        if (debug) {
-            console.log('[payload-better-auth] Plugin initializing with configuration:');
-            console.log('[payload-better-auth]   - internalBaseURL:', internalBaseURL);
-            console.log('[payload-better-auth]   - externalBaseURL:', externalBaseURL);
-            console.log('[payload-better-auth]   - disabled:', pluginOptions.disabled ?? false);
-            console.log('[payload-better-auth]   - debug:', debug);
-            console.log('[payload-better-auth]   - reconcileToken:', pluginOptions.reconcileToken ? '[REDACTED]' : 'not set');
-            console.log('[payload-better-auth]   - fetchOptions.headers:', restClientOptions.fetchOptions?.headers ? '[configured]' : 'not set');
-        }
+        // Log plugin configuration at startup (deduplicated)
+        void logger.log('init', `Initialized (baseURL: ${internalBaseURL})`);
         const Users = createUsersCollection({
-            authClientOptions: internalAuthClientOptions
+            storage
         });
         if (!config.collections) {
             config.collections = [
@@ -96,12 +97,14 @@ export const betterAuthPayloadPlugin = (pluginOptions)=>(config)=>{
             if (incomingOnInit) {
                 await incomingOnInit(payload);
             }
-            await triggerFullReconcile({
-                additionalHeaders: restClientOptions.fetchOptions?.headers,
-                betterAuthUrl: internalBaseURL,
-                payload,
-                reconcileToken: pluginOptions.reconcileToken
-            });
+            // Set Payload timestamp in storage - Better Auth will see this and trigger reconciliation
+            const timestamp = Date.now();
+            await storage.set(TIMESTAMP_PREFIX + 'payload', String(timestamp));
+            // Also notify via event bus for same-process subscribers
+            eventBus.notifyTimestampChange('payload', timestamp);
+            await logger.log('ready', 'Ready, waiting for Better Auth to sync');
+        // Note: User sync is now handled entirely by the reconcile queue on the Better Auth side.
+        // The queue enqueues ensure/delete tasks when users change, and processes them with retries.
         };
         return config;
     };

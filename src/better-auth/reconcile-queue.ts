@@ -32,13 +32,6 @@ export interface InitOptions {
   tickMs?: number
 }
 
-// Simplified bootstrap state interface (removed processId)
-interface BootstrapState {
-  adminHeaders: Headers | null
-  bootstrapPromise: null | Promise<void>
-  isBootstrapped: boolean
-}
-
 type Task =
   | {
       attempts: number
@@ -61,12 +54,6 @@ type Task =
 const KEY = (t: Task) => `${t.kind}:${t.baId}`
 
 export class Queue {
-  // Bootstrap state stored directly on the queue instance
-  private bootstrapState: BootstrapState = {
-    adminHeaders: null,
-    bootstrapPromise: null,
-    isBootstrapped: false,
-  }
   private deps!: QueueDeps
   private failed = 0
   private keys = new Map<string, Task>()
@@ -84,9 +71,6 @@ export class Queue {
 
   constructor(deps: QueueDeps, opts: InitOptions = {}) {
     this.deps = deps
-    const log = this.deps?.log ?? (() => {})
-    // Start bootstrap process - but defer heavy operations
-    log('Starting bootstrap process...')
 
     // Start timers but don't run reconcile immediately
     this.start({
@@ -103,8 +87,6 @@ export class Queue {
         )
       }, 2000) // 2 second delay to allow Better Auth and Payload to fully initialize
     }
-
-    log('Bootstrap process completed')
   }
 
   private bumpFront(task: Task) {
@@ -343,12 +325,6 @@ export class Queue {
     )
   }
 
-  // Get current instance info
-  getInstanceInfo() {
-    return {
-      isBootstrapped: this.bootstrapState.isBootstrapped,
-    }
-  }
 
   /** Seed tasks by comparing users page by page (Better-Auth → Payload). */
   async seedFullReconcile() {

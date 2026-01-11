@@ -72,19 +72,5 @@ import crypto from 'crypto';
         return false;
     }
 }
-/**
- * Convenience function for verifying signatures with input object
- * @param input - Verification parameters
- * @returns true if signature is valid, false otherwise
- */ export function verifySignature(input) {
-    return verifyCanonical(input.body, input.signature, input.secret, input.maxSkewSec);
-}
-/**
- * Convenience function for creating signatures with input object
- * @param input - Signing parameters
- * @returns Signature object
- */ export function createSignature(input) {
-    return signCanonical(input.body, input.secret);
-}
 
 //# sourceMappingURL=crypto-shared.js.map

@@ -31,29 +31,6 @@ export interface CryptoSignature {
   ts: string
 }
 
-/**
- * Input parameters for signature verification
- */
-export interface VerifySignatureInput {
-  /** The data that was signed */
-  body: unknown
-  /** Maximum allowed time skew in seconds (default: 300) */
-  maxSkewSec?: number
-  /** Secret key for verification */
-  secret: string
-  /** The signature to verify */
-  signature: CryptoSignature
-}
-
-/**
- * Input parameters for signature creation
- */
-export interface SignCanonicalInput {
-  /** The data to sign */
-  body: unknown
-  /** Secret key for signing */
-  secret: string
-}
 
 /**
  * Converts an object to a canonical string representation
@@ -150,20 +127,3 @@ export function verifyCanonical(
   }
 }
 
-/**
- * Convenience function for verifying signatures with input object
- * @param input - Verification parameters
- * @returns true if signature is valid, false otherwise
- */
-export function verifySignature(input: VerifySignatureInput) {
-  return verifyCanonical(input.body, input.signature, input.secret, input.maxSkewSec)
-}
-
-/**
- * Convenience function for creating signatures with input object
- * @param input - Signing parameters
- * @returns Signature object
- */
-export function createSignature(input: SignCanonicalInput) {
-  return signCanonical(input.body, input.secret)
-}

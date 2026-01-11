@@ -23,6 +23,16 @@
       "import": "./dist/exports/rsc.js",
       "types": "./dist/exports/rsc.d.ts",
       "default": "./dist/exports/rsc.js"
+    },
+    "./storage": {
+      "import": "./dist/storage/index.js",
+      "types": "./dist/storage/index.d.ts",
+      "default": "./dist/storage/index.js"
+    },
+    "./eventBus": {
+      "import": "./dist/eventBus/index.js",
+      "types": "./dist/eventBus/index.d.ts",
+      "default": "./dist/eventBus/index.js"
     }
   },
   "main": "./dist/index.js",
@@ -155,6 +165,16 @@
         "import": "./dist/exports/rsc.js",
         "types": "./dist/exports/rsc.d.ts",
         "default": "./dist/exports/rsc.js"
+      },
+      "./storage": {
+        "import": "./dist/storage/index.js",
+        "types": "./dist/storage/index.d.ts",
+        "default": "./dist/storage/index.js"
+      },
+      "./eventBus": {
+        "import": "./dist/eventBus/index.js",
+        "types": "./dist/eventBus/index.d.ts",
+        "default": "./dist/eventBus/index.js"
       }
     },
     "main": "./dist/index.js",

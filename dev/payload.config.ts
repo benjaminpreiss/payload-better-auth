@@ -8,6 +8,8 @@ import sharp from 'sharp'
 import { fileURLToPath } from 'url'
 
 import { testEmailAdapter } from './helpers/testEmailAdapter'
+import { eventBus } from './lib/eventBus'
+import { storage } from './lib/syncAdapter'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -51,7 +53,8 @@ export default buildConfig({
         internalBaseURL: process.env.INTERNAL_SERVER_URL || 'http://localhost:3000',
       },
       debug: true,
-      reconcileToken: process.env.RECONCILE_TOKEN,
+      eventBus, // Shared with Better Auth plugin
+      storage, // Shared with Better Auth plugin
     }),
   ],
   secret: process.env.PAYLOAD_SECRET || 'test-secret_key',

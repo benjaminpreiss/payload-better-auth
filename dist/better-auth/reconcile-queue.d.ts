@@ -20,7 +20,6 @@ export interface InitOptions {
     tickMs?: number;
 }
 export declare class Queue {
-    private bootstrapState;
     private deps;
     private failed;
     private keys;
@@ -46,9 +45,6 @@ export declare class Queue {
     private tick;
     enqueueDelete(baId: string, priority?: boolean, source?: TaskSource, reconcileId?: string): void;
     enqueueEnsure(user: BAUser, priority?: boolean, source?: TaskSource, reconcileId?: string): void;
-    getInstanceInfo(): {
-        isBootstrapped: boolean;
-    };
     /** Seed tasks by comparing users page by page (Better-Auth → Payload). */
     seedFullReconcile(): Promise<void>;
     start({ reconcileEveryMs, tickMs }?: {

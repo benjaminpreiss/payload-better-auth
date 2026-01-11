@@ -1,11 +1,5 @@
 const KEY = (t)=>`${t.kind}:${t.baId}`;
 export class Queue {
-    // Bootstrap state stored directly on the queue instance
-    bootstrapState = {
-        adminHeaders: null,
-        bootstrapPromise: null,
-        isBootstrapped: false
-    };
     deps;
     failed = 0;
     keys = new Map();
@@ -21,9 +15,6 @@ export class Queue {
     tickTimer = null;
     constructor(deps, opts = {}){
         this.deps = deps;
-        const log = this.deps?.log ?? (()=>{});
-        // Start bootstrap process - but defer heavy operations
-        log('Starting bootstrap process...');
         // Start timers but don't run reconcile immediately
         this.start({
             reconcileEveryMs: opts?.reconcileEveryMs ?? 30 * 60_000,
@@ -36,7 +27,6 @@ export class Queue {
                 this.seedFullReconcile().catch((err)=>this.deps.log && this.deps.log('[reconcile] seed failed', err));
             }, 2000); // 2 second delay to allow Better Auth and Payload to fully initialize
         }
-        log('Bootstrap process completed');
     }
     bumpFront(task) {
         this.q = [
@@ -259,12 +249,6 @@ export class Queue {
             reconcileId,
             source
         }, priority);
-    }
-    // Get current instance info
-    getInstanceInfo() {
-        return {
-            isBootstrapped: this.bootstrapState.isBootstrapped
-        };
     }
     /** Seed tasks by comparing users page by page (Better-Auth → Payload). */ async seedFullReconcile() {
         const log = this.deps?.log ?? (()=>{});

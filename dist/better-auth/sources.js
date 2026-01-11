@@ -2,6 +2,9 @@
 import { getPayload } from 'payload';
 import { signCanonical } from './crypto-shared';
 const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET;
+// ═══════════════════════════════════════════════════════════════════════════
+// Payload Operations
+// ═══════════════════════════════════════════════════════════════════════════
 /** Create a function to load Payload users page by page via Local API. */ export function createListPayloadUsersPage(config) {
     return async function listPayloadUsersPage(limit, page) {
         const payload = await getPayload({
@@ -24,22 +27,16 @@ const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET;
         };
     };
 }
-// Better-auth is the single source of truth and manages users through database hooks
-// These functions provide bidirectional validation and sync capabilities
 /**
- * Sync user from better-auth to Payload
- * This is called from the better-auth hooks
- * Creates a Payload user with externalId, which prevents reverse sync
- */ /**
- * Create a function to sync user from better-auth to Payload
- * This is called from the better-auth hooks
- * Creates a Payload user with externalId, which prevents reverse sync
+ * Create a function to sync user from better-auth to Payload.
+ * This is called from the better-auth hooks.
+ * Creates a Payload user with externalId, which prevents reverse sync.
  */ export function createSyncUserToPayload(config) {
     return async function syncUserToPayload(betterAuthUser) {
         const payload = await getPayload({
             config
         });
-        // idempotency check (keep as-is)
+        // idempotency check
         const existing = await payload.find({
             collection: 'users',
             limit: 1,
@@ -55,8 +52,7 @@ const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET;
         const baBody = {
             op: 'create',
             userId: betterAuthUser.id
-        } // keep body minimal & stable
-        ;
+        };
         const baSig = signCanonical(baBody, INTERNAL_SECRET);
         await payload.create({
             collection: 'users',
@@ -72,8 +68,7 @@ const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET;
         });
     };
 }
-// Create a function to delete user from Payload
-export function createDeleteUserFromPayload(config) {
+/** Create a function to delete user from Payload. */ export function createDeleteUserFromPayload(config) {
     return async function deleteUserFromPayload(betterAuthUserId) {
         const payload = await getPayload({
             config
@@ -103,22 +98,6 @@ export function createDeleteUserFromPayload(config) {
                 baSig
             },
             overrideAccess: false
-        });
-    };
-}
-// ——— Optional: link an existing Payload user (id-matched) to BA id
-export function createAttachExternalIdInPayload(config) {
-    return async function attachExternalIdInPayload(payloadUserId, baId) {
-        const payload = await getPayload({
-            config
-        });
-        await payload.update({
-            id: payloadUserId,
-            collection: 'users',
-            data: {
-                externalId: baId
-            },
-            overrideAccess: true
         });
     };
 }

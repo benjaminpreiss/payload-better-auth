@@ -4,7 +4,9 @@ import Database from 'better-sqlite3'
 import { payloadBetterAuthPlugin } from 'payload-better-auth'
 
 import buildConfig from '../payload.config'
+import { eventBus } from './eventBus'
 import { sendEmail } from './sendMails'
+import { storage } from './syncAdapter'
 
 // Use environment-specific database path
 const dbPath = process.env.BETTER_AUTH_DB_PATH || './better-auth.db'
@@ -23,9 +25,11 @@ export const auth = betterAuth({
           user: { name: 'Sample admin', email: 'sample-admin@user.com', password: 'bubbletea' },
         },
       ],
+      enableLogging: true, // Enable reconciliation logging
+      eventBus, // Shared with Payload plugin
       payloadConfig: buildConfig,
       reconcileEveryMs: 30 * 60_000,
-      runOnBoot: process.env.RECONCILE_ON_BOOT !== 'false',
+      storage, // Shared with Payload plugin
       tickMs: 1000,
       token: process.env.RECONCILE_TOKEN || 'reconcile-api-token',
     }),

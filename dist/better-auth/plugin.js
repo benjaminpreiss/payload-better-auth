@@ -1,13 +1,53 @@
 // src/plugins/reconcile-queue-plugin.ts
 import { APIError } from 'better-auth/api';
 import { createAuthEndpoint, createAuthMiddleware } from 'better-auth/plugins';
-import { createDatabaseHooks } from './databaseHooks';
+import { createDeduplicatedLogger } from '../shared/deduplicatedLogger';
 import { Queue } from './reconcile-queue';
 import { createDeleteUserFromPayload, createListPayloadUsersPage, createSyncUserToPayload } from './sources';
 const defaultLog = (msg, extra)=>{
     console.log(`[reconcile] ${msg}`, extra ? JSON.stringify(extra, null, 2) : '');
 };
+// Key prefixes for storage
+const TIMESTAMP_PREFIX = 'timestamp:';
+/**
+ * Create database hooks that enqueue user changes to the reconciliation queue.
+ * All sync operations go through the queue for consistent handling with retries.
+ */ function createQueueBasedHooks(queue) {
+    return {
+        user: {
+            create: {
+                after: (user)=>{
+                    queue.enqueueEnsure(user, true, 'user-operation');
+                    return Promise.resolve();
+                }
+            },
+            delete: {
+                after: (user)=>{
+                    queue.enqueueDelete(user.id, true, 'user-operation');
+                    return Promise.resolve();
+                }
+            },
+            update: {
+                after: (user)=>{
+                    queue.enqueueEnsure(user, true, 'user-operation');
+                    return Promise.resolve();
+                }
+            }
+        }
+    };
+}
 export const payloadBetterAuthPlugin = (opts)=>{
+    const { eventBus, storage } = opts;
+    // Create deduplicated logger
+    const logger = createDeduplicatedLogger({
+        enabled: opts.enableLogging ?? false,
+        prefix: '[better-auth]',
+        storage
+    });
+    // Keep the simple log for queue operations (they handle their own deduplication)
+    const queueLog = opts.enableLogging ? defaultLog : undefined;
+    // Track subscription for cleanup
+    let unsubscribeFromPayload = null;
     return {
         id: 'reconcile-queue-plugin',
         endpoints: {
@@ -119,18 +159,8 @@ export const payloadBetterAuthPlugin = (opts)=>{
                 }
             ]
         },
-        schema: {
-            user: {
-                fields: {
-                    locale: {
-                        type: 'string',
-                        required: false
-                    }
-                }
-            }
-        },
-        // TODO: the queue must be destroyed on better auth instance destruction, as it utilizes timers.
         async init ({ internalAdapter, password }) {
+            // Create admin users if configured
             if (opts.createAdmins) {
                 try {
                     await Promise.all(opts.createAdmins.map(async ({ overwrite, user })=>{
@@ -143,7 +173,6 @@ export const payloadBetterAuthPlugin = (opts)=>{
                                     ...user,
                                     role: 'admin'
                                 });
-                                // assuming this creates an account?
                                 await internalAdapter.linkAccount({
                                     accountId: createdUser.id,
                                     password: await password.hash(user.password),
@@ -165,18 +194,84 @@ export const payloadBetterAuthPlugin = (opts)=>{
                         }
                     }));
                 } catch (error) {
-                    if (opts.enableLogging) {
-                        defaultLog('Failed to create Admin user', error);
-                    }
+                    logger.always('Failed to create Admin user', error);
                 }
             }
+            // Create the reconciliation queue
             const queue = new Queue({
                 deleteUserFromPayload: createDeleteUserFromPayload(opts.payloadConfig),
                 internalAdapter,
                 listPayloadUsersPage: createListPayloadUsersPage(opts.payloadConfig),
-                log: opts.enableLogging ? defaultLog : undefined,
+                log: queueLog,
                 syncUserToPayload: createSyncUserToPayload(opts.payloadConfig)
-            }, opts);
+            }, {
+                ...opts,
+                // Don't run reconcile on boot - we use timestamp-based coordination instead
+                runOnBoot: false
+            });
+            // Log init (deduplicated)
+            await logger.log('init', 'Initialized');
+            // Timestamp-based reconciliation coordination
+            async function attemptReconciliation() {
+                logger.always('Syncing users to Payload...');
+                await storage.set(TIMESTAMP_PREFIX + 'better-auth', String(Date.now()));
+                try {
+                    await queue.seedFullReconcile();
+                    logger.always('Sync completed successfully');
+                    // Success - unsubscribe if we were watching
+                    if (unsubscribeFromPayload) {
+                        unsubscribeFromPayload();
+                        unsubscribeFromPayload = null;
+                    }
+                } catch (error) {
+                    logger.always('Sync failed, will retry when Payload restarts', error);
+                    // Subscribe to Payload timestamp changes if not already
+                    if (!unsubscribeFromPayload) {
+                        unsubscribeFromPayload = eventBus.subscribeToTimestamp('payload', ()=>{
+                            attemptReconciliation().catch((err)=>{
+                                logger.always('Sync attempt failed', err);
+                            });
+                        });
+                    }
+                }
+            }
+            // Check if Payload is online and started more recently than our last reconcile
+            const payloadTsStr = await storage.get(TIMESTAMP_PREFIX + 'payload');
+            const baTsStr = await storage.get(TIMESTAMP_PREFIX + 'better-auth');
+            const payloadTs = payloadTsStr ? parseInt(payloadTsStr, 10) : null;
+            const baTs = baTsStr ? parseInt(baTsStr, 10) : null;
+            // Determine reconciliation state
+            if (payloadTs === null) {
+                // Payload hasn't started yet
+                await logger.log('status', 'Waiting for Payload to start...');
+                unsubscribeFromPayload = eventBus.subscribeToTimestamp('payload', ()=>{
+                    attemptReconciliation().catch((err)=>{
+                        logger.always('Sync attempt failed', err);
+                    });
+                });
+            } else if (baTs === null) {
+                // First run - always sync
+                attemptReconciliation().catch((err)=>{
+                    logger.always('Initial sync failed', err);
+                });
+            } else if (payloadTs > baTs) {
+                // Payload restarted since last reconcile - sync needed
+                attemptReconciliation().catch((err)=>{
+                    logger.always('Sync failed', err);
+                });
+            } else {
+                // Already reconciled and up-to-date
+                await logger.log('status', 'Already synchronized', {
+                    lastSync: new Date(baTs).toISOString()
+                });
+                unsubscribeFromPayload = eventBus.subscribeToTimestamp('payload', ()=>{
+                    attemptReconciliation().catch((err)=>{
+                        logger.always('Sync attempt failed', err);
+                    });
+                });
+            }
+            // Create queue-based database hooks - all user sync goes through the queue
+            const queueBasedHooks = createQueueBasedHooks(queue);
             return {
                 context: {
                     payloadSyncPlugin: {
@@ -184,9 +279,10 @@ export const payloadBetterAuthPlugin = (opts)=>{
                     }
                 },
                 options: {
-                    databaseHooks: createDatabaseHooks({
-                        config: opts.payloadConfig
-                    }),
+                    databaseHooks: queueBasedHooks,
+                    // Pass storage to Better Auth as secondaryStorage - this makes BA write sessions
+                    // to the shared storage, allowing Payload to validate sessions directly from cache
+                    secondaryStorage: storage,
                     user: {
                         deleteUser: {
                             enabled: true
@@ -194,6 +290,16 @@ export const payloadBetterAuthPlugin = (opts)=>{
                     }
                 }
             };
+        },
+        schema: {
+            user: {
+                fields: {
+                    locale: {
+                        type: 'string',
+                        required: false
+                    }
+                }
+            }
         }
     };
 };

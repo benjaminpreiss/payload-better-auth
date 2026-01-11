@@ -5,9 +5,11 @@ A Payload CMS plugin that integrates [Better Auth](https://better-auth.com) for 
 ## Features
 
 - **Better Auth as Single Source of Truth** — All user operations managed through Better Auth
-- **Real-time Sync** — Automatic synchronization via database hooks
-- **Background Reconciliation** — Periodic full sync ensures data consistency
-- **Cryptographic Security** — Signed operations prevent unauthorized modifications
+- **SecondaryStorage Pattern** — Pluggable storage with SQLite (dev) or Redis (production)
+- **Instant Session Validation** — Payload reads sessions directly from shared storage (no HTTP calls)
+- **Automatic Session Invalidation** — Logout in Better Auth immediately invalidates Payload sessions
+- **Horizontal Scaling** — Redis adapter supports multiple instances
+- **Timestamp-based Coordination** — Automatic reconciliation without race conditions
 - **Custom Login UI** — Replaces Payload's default login with Better Auth authentication
 
 ## Installation
@@ -16,11 +18,29 @@ A Payload CMS plugin that integrates [Better Auth](https://better-auth.com) for 
 pnpm add payload-better-auth better-auth
 ```
 
-**Requirements:** Node.js 18.20.2+, Better Auth 1.4.10+, Payload CMS 3.37.0+
+**Requirements:** Node.js 22+ (for native SQLite), Better Auth 1.4.10+, Payload CMS 3.37.0+
 
 ## Quick Start
 
-### 1. Configure Better Auth
+### 1. Create Shared Storage & EventBus
+
+```typescript
+// lib/syncAdapter.ts
+import { DatabaseSync } from 'node:sqlite'
+import { createSqliteStorage } from 'payload-better-auth/storage'
+
+const db = new DatabaseSync('.sync-state.db')
+export const storage = createSqliteStorage({ db })
+
+// lib/eventBus.ts
+import { DatabaseSync } from 'node:sqlite'
+import { createSqlitePollingEventBus } from 'payload-better-auth/eventBus'
+
+const db = new DatabaseSync('.event-bus.db')
+export const eventBus = createSqlitePollingEventBus({ db })
+```
+
+### 2. Configure Better Auth
 
 ```typescript
 // lib/auth.ts
@@ -29,6 +49,8 @@ import { admin, apiKey } from 'better-auth/plugins'
 import Database from 'better-sqlite3'
 import { payloadBetterAuthPlugin } from 'payload-better-auth'
 import buildConfig from './payload.config.js'
+import { eventBus } from './eventBus'
+import { storage } from './syncAdapter'
 
 export const auth = betterAuth({
   database: new Database(process.env.BETTER_AUTH_DB_PATH || './better-auth.db'),
@@ -40,26 +62,38 @@ export const auth = betterAuth({
     payloadBetterAuthPlugin({
       payloadConfig: buildConfig,
       token: process.env.RECONCILE_TOKEN,
+      storage,   // Shared with Payload plugin
+      eventBus,  // Shared with Payload plugin
     }),
   ],
 })
 ```
 
-### 2. Configure Payload
+### 3. Configure Payload
 
 ```typescript
 // payload.config.ts
 import { buildConfig } from 'payload'
-import { betterAuthPlugin } from 'payload-better-auth'
-import { auth } from './lib/auth.js'
+import { betterAuthPayloadPlugin } from 'payload-better-auth'
+import { eventBus } from './lib/eventBus'
+import { storage } from './lib/syncAdapter'
 
 export default buildConfig({
-  plugins: [betterAuthPlugin({ betterAuth: auth })],
+  plugins: [
+    betterAuthPayloadPlugin({
+      betterAuthClientOptions: {
+        externalBaseURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+        internalBaseURL: process.env.INTERNAL_SERVER_URL || 'http://localhost:3000',
+      },
+      storage,   // Shared with Better Auth plugin
+      eventBus,  // Shared with Better Auth plugin
+    }),
+  ],
   // ... rest of your config
 })
 ```
 
-### 3. Set Environment Variables
+### 4. Set Environment Variables
 
 ```bash
 BETTER_AUTH_SECRET=your-secret-min-32-chars
@@ -68,6 +102,47 @@ BA_TO_PAYLOAD_SECRET=your-sync-secret
 RECONCILE_TOKEN=your-api-token
 PAYLOAD_SECRET=your-payload-secret
 DATABASE_URI=file:./payload.db
+```
+
+## Production Setup with Redis
+
+For multi-server or geo-distributed deployments, use the Redis storage and EventBus adapters:
+
+```typescript
+// lib/syncAdapter.ts
+import { createRedisStorage } from 'payload-better-auth/storage'
+import Redis from 'ioredis'
+
+const redis = new Redis(process.env.REDIS_URL)
+export const storage = createRedisStorage({ redis })
+
+// lib/eventBus.ts
+import { createRedisEventBus } from 'payload-better-auth/eventBus'
+import Redis from 'ioredis'
+
+// Redis Pub/Sub requires separate connections for publishing and subscribing
+const publisher = new Redis(process.env.REDIS_URL)
+const subscriber = new Redis(process.env.REDIS_URL)
+export const eventBus = createRedisEventBus({ publisher, subscriber })
+```
+
+Then pass the **same instances** to both plugins:
+
+```typescript
+// In Better Auth config:
+payloadBetterAuthPlugin({ 
+  storage,
+  eventBus,
+  payloadConfig: buildConfig,
+  token: process.env.RECONCILE_TOKEN,
+})
+
+// In Payload config:
+betterAuthPayloadPlugin({ 
+  storage,
+  eventBus,
+  betterAuthClientOptions: { ... },
+})
 ```
 
 ## Documentation
@@ -145,10 +220,13 @@ pnpm add github:benjaminpreiss/payload-better-auth#v1.2.0
 
 ```
 ├── src/                    # Plugin source code
-│   ├── better-auth/        # Better Auth integration
-│   ├── collections/        # Payload collections
-│   ├── components/         # React components
+│   ├── storage/            # SecondaryStorage implementations (SQLite, Redis)
+│   ├── eventBus/           # EventBus implementations (SQLite polling, Redis Pub/Sub)
+│   ├── better-auth/        # Better Auth integration & reconcile queue
+│   ├── collections/        # Payload collections (Users)
+│   ├── components/         # React components (Login UI)
 │   ├── payload/            # Payload plugin
+│   ├── shared/             # Shared utilities (deduplicated logger)
 │   └── exports/            # Client/RSC exports
 ├── dev/                    # Development environment
 │   ├── app/                # Next.js app

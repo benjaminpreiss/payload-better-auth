@@ -5,9 +5,12 @@ Complete documentation for integrating Better Auth with Payload CMS.
 ## Table of Contents
 
 - [Architecture](#architecture)
+- [Storage Adapters](#storage-adapters)
+- [EventBus](#eventbus)
 - [Environment Variables](#environment-variables)
 - [Configuration](#configuration)
 - [Configuration Options Reference](#configuration-options-reference)
+- [Sync Flow](#sync-flow)
 - [API Endpoints](#api-endpoints)
 - [Monitoring & Debugging](#monitoring--debugging)
 - [Production Considerations](#production-considerations)
@@ -16,33 +19,186 @@ Complete documentation for integrating Better Auth with Payload CMS.
 
 ## Architecture
 
-### How It Works
+### Overview
 
-Better Auth serves as the **single source of truth** for all user operations. When users are created, updated, or deleted in Better Auth, the changes are automatically synchronized to Payload CMS.
+Better Auth serves as the **single source of truth** for all user operations. The SecondaryStorage provides a shared key-value store for sessions, timestamps, and coordination between Better Auth and Payload CMS.
 
 ```
-┌─────────────────┐     Database Hooks     ┌─────────────────┐
-│   Better Auth   │ ──────────────────────▶│   Payload CMS   │
-│  (Source of     │                        │  (Receives      │
-│   Truth)        │ ◀────────────────────  │   synced users) │
-└─────────────────┘   Reconcile Queue      └─────────────────┘
+┌─────────────────┐                           ┌─────────────────┐
+│   Better Auth   │                           │   Payload CMS   │
+│                 │                           │                 │
+│  - Sets BA      │     ┌─────────────────┐   │  - Sets Payload │
+│    timestamp    │────▶│ SecondaryStorage│◀──│    timestamp    │
+│  - Writes       │     │                 │   │  - Reads        │
+│    sessions     │     │  Sessions (KV)  │   │    sessions     │
+│  - Enqueues     │     │  Timestamps     │   │                 │
+│    user sync    │     │  Nonces         │   │                 │
+│                 │     └─────────────────┘   │                 │
+│                 │                           │                 │
+│                 │     ┌─────────────────┐   │                 │
+│  - Notifies     │────▶│    EventBus     │◀──│  - Subscribes   │
+│    timestamp    │     │                 │   │    to timestamp │
+│    changes      │     │ Timestamp Events│   │    changes      │
+└─────────────────┘     └─────────────────┘   └─────────────────┘
 ```
 
 ### Core Components
 
 | Component | Purpose |
 |-----------|---------|
-| **Database Hooks** | Real-time sync on user create/delete via Better Auth hooks |
-| **Reconcile Queue** | Background task queue with retry logic and exponential backoff |
-| **Crypto Utilities** | HMAC-SHA256 signatures with nonce-based anti-replay protection |
-| **Users Collection** | Payload collection with custom Better Auth authentication strategy |
-| **Admin Sessions** | Temporary admin users for API access, auto-created and cleaned up |
+| **SecondaryStorage** | Key-value store for sessions, timestamps, nonces |
+| **EventBus** | Real-time notifications for timestamp changes |
+| **Reconcile Queue** | Background task queue with retry logic |
+| **Timestamp Coordination** | Determines when reconciliation should run |
+| **Users Collection** | Payload collection with Better Auth session validation |
 
-### Sync Flow
+### Session Flow
 
-1. **Real-time**: User operations in Better Auth trigger immediate sync via database hooks
-2. **Background**: Periodic full reconciliation compares all users between systems
-3. **Signed Operations**: All sync requests are cryptographically signed to prevent unauthorized modifications
+1. User logs in via Better Auth
+2. Better Auth writes session to SecondaryStorage (via `secondaryStorage` option)
+3. Request hits Payload with session cookie
+4. Payload reads session directly from SecondaryStorage (no HTTP call)
+5. On logout, Better Auth deletes session from storage
+6. Next Payload request sees no session → user is logged out
+
+---
+
+## Storage Adapters
+
+The SecondaryStorage is a simple key-value interface. Choose the right implementation for your deployment.
+
+### SQLite Storage (Development)
+
+Uses Node.js 22+ native SQLite. Suitable for:
+
+- Local development
+- Single-instance deployments
+- Same-process Better Auth + Payload
+
+```typescript
+import { DatabaseSync } from 'node:sqlite'
+import { createSqliteStorage } from 'payload-better-auth/storage'
+
+const db = new DatabaseSync('.sync-state.db')
+export const storage = createSqliteStorage({ db })
+```
+
+**Characteristics:**
+- Data persists across HMR and process restarts
+- No external dependencies
+- Single-process only
+
+### Redis Storage (Production)
+
+For production deployments with:
+
+- Multiple Payload instances
+- Geographically distributed services
+- Horizontal scaling requirements
+
+```typescript
+import { createRedisStorage } from 'payload-better-auth/storage'
+import Redis from 'ioredis'
+
+const redis = new Redis(process.env.REDIS_URL)
+export const storage = createRedisStorage({ redis })
+```
+
+**Characteristics:**
+- Automatic TTL for sessions and nonces
+- Scales horizontally across multiple instances
+- Requires Redis server
+
+**Redis Client Compatibility:**
+
+The adapter accepts any Redis client compatible with the `RedisClient` interface:
+
+- ioredis
+- node-redis
+- Any client with `get`, `set`, `del` methods
+
+### SecondaryStorage Interface
+
+Implement this interface for custom backends:
+
+```typescript
+import type { SecondaryStorage } from 'payload-better-auth/storage'
+
+const customStorage: SecondaryStorage = {
+  async get(key: string): Promise<string | null> { ... },
+  async set(key: string, value: string, ttl?: number): Promise<void> { ... },
+  async delete(key: string): Promise<void> { ... },
+}
+```
+
+---
+
+## EventBus
+
+The EventBus provides real-time notifications for timestamp changes, enabling coordination between Better Auth and Payload.
+
+### Redis EventBus (Production)
+
+Uses Redis Pub/Sub for instant event delivery across distributed servers:
+
+```typescript
+import { createRedisEventBus } from 'payload-better-auth/eventBus'
+import Redis from 'ioredis'
+
+// Redis Pub/Sub requires separate connections for publishing and subscribing
+const publisher = new Redis(process.env.REDIS_URL)
+const subscriber = new Redis(process.env.REDIS_URL)
+export const eventBus = createRedisEventBus({ publisher, subscriber })
+```
+
+**Options:**
+- `channelPrefix` - Prefix for Redis Pub/Sub channels (default: `'eventbus:'`)
+
+**Characteristics:**
+- Instant event delivery (no polling)
+- Scales across multiple servers and processes
+- Requires Redis server
+- **Recommended for production**
+
+**Important:** Redis Pub/Sub requires two separate connections:
+- `publisher` - For sending events (can be shared with other operations)
+- `subscriber` - Dedicated connection that enters "subscriber mode"
+
+### SQLite Polling EventBus (Development)
+
+Uses SQLite for cross-process event coordination with polling:
+
+```typescript
+import { DatabaseSync } from 'node:sqlite'
+import { createSqlitePollingEventBus } from 'payload-better-auth/eventBus'
+
+const db = new DatabaseSync('.event-bus.db')
+export const eventBus = createSqlitePollingEventBus({ db })
+```
+
+**Options:**
+- `pollInterval` - How often to poll for new events (default: 100ms)
+- `cleanupInterval` - How often to clean old events (default: 60s)
+- `cleanupAge` - Age of events to clean up (default: 60s)
+
+**Characteristics:**
+- Works across multiple processes on the same machine
+- Higher latency than Redis (polling-based)
+- No external dependencies (uses Node.js 22+ native SQLite)
+- **Logs warning in staging/production** - use Redis EventBus instead
+
+### EventBus Interface
+
+Implement this interface for custom backends:
+
+```typescript
+import type { EventBus } from 'payload-better-auth/eventBus'
+
+const customEventBus: EventBus = {
+  notifyTimestampChange(service: string, timestamp: number): void { ... },
+  subscribeToTimestamp(service: string, handler: (ts: number) => void): () => void { ... },
+}
+```
 
 ---
 
@@ -68,15 +224,36 @@ BETTER_AUTH_URL=http://localhost:3000        # Base URL for reconcile triggers
 # ══════════════════════════════════════════════════════════════
 BA_TO_PAYLOAD_SECRET=your-sync-secret   # Signs sync operations (required)
 RECONCILE_TOKEN=your-api-token          # Protects reconcile API endpoints
-RECONCILE_ON_BOOT=true                  # Run full reconcile on startup
-RECONCILE_PRUNE=false                   # Delete orphaned Payload users (use carefully!)
+
+# ══════════════════════════════════════════════════════════════
+# REDIS (optional, for distributed deployments)
+# ══════════════════════════════════════════════════════════════
+REDIS_URL=redis://localhost:6379        # Redis connection URL
 ```
 
 ---
 
 ## Configuration
 
-### 1. Better Auth Setup
+### 1. Create Shared Storage & EventBus
+
+```typescript
+// lib/syncAdapter.ts
+import { DatabaseSync } from 'node:sqlite'
+import { createSqliteStorage } from 'payload-better-auth/storage'
+
+const db = new DatabaseSync('.sync-state.db')
+export const storage = createSqliteStorage({ db })
+
+// lib/eventBus.ts
+import { DatabaseSync } from 'node:sqlite'
+import { createSqlitePollingEventBus } from 'payload-better-auth/eventBus'
+
+const db = new DatabaseSync('.event-bus.db')
+export const eventBus = createSqlitePollingEventBus({ db })
+```
+
+### 2. Better Auth Setup
 
 ```typescript
 // lib/auth.ts
@@ -85,6 +262,8 @@ import { admin, apiKey } from 'better-auth/plugins'
 import Database from 'better-sqlite3'
 import { payloadBetterAuthPlugin } from 'payload-better-auth'
 import buildConfig from './payload.config.js'
+import { eventBus } from './eventBus'
+import { storage } from './syncAdapter'
 
 export const auth = betterAuth({
   database: new Database(process.env.BETTER_AUTH_DB_PATH || './better-auth.db'),
@@ -97,7 +276,8 @@ export const auth = betterAuth({
     payloadBetterAuthPlugin({
       payloadConfig: buildConfig,
       token: process.env.RECONCILE_TOKEN || 'reconcile-api-token',
-      runOnBoot: process.env.RECONCILE_ON_BOOT !== 'false',
+      storage,
+      eventBus,
       tickMs: 1000,
       reconcileEveryMs: 30 * 60_000,  // 30 minutes
     }),
@@ -105,64 +285,38 @@ export const auth = betterAuth({
 })
 ```
 
-### 2. Payload Setup
+### 3. Payload Setup
 
 ```typescript
 // payload.config.ts
 import { buildConfig } from 'payload'
-import { betterAuthPlugin } from 'payload-better-auth'
-import { auth } from './lib/auth.js'
+import { betterAuthPayloadPlugin } from 'payload-better-auth'
+import { eventBus } from './lib/eventBus'
+import { storage } from './lib/syncAdapter'
 
 export default buildConfig({
   plugins: [
-    betterAuthPlugin({ betterAuth: auth }),
+    betterAuthPayloadPlugin({
+      betterAuthClientOptions: {
+        externalBaseURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+        internalBaseURL: process.env.INTERNAL_SERVER_URL || 'http://localhost:3000',
+      },
+      storage,
+      eventBus,
+      debug: process.env.NODE_ENV === 'development',
+    }),
   ],
   // ... other config
 })
 ```
 
-### 3. Users Collection (Auto-configured)
+### 4. Users Collection (Auto-configured)
 
 The plugin automatically configures the Users collection with:
 
-- **Custom auth strategy**: Validates Better Auth sessions
+- **Session validation from storage**: Reads sessions directly from SecondaryStorage
 - **Signed access control**: Only accepts cryptographically signed operations
 - **externalId field**: Links Payload users to Better Auth users
-
-```typescript
-// What the plugin configures for you:
-{
-  slug: 'users',
-  auth: {
-    disableLocalStrategy: true,
-    strategies: [{
-      name: 'better-auth',
-      authenticate: async ({ headers, payload }) => {
-        const session = await auth.api.getSession({ headers })
-        if (!session) return { user: null }
-        
-        const existing = await payload.find({
-          collection: 'users',
-          where: { externalId: { equals: session.user.id } },
-          limit: 1,
-        })
-        
-        return { user: existing.docs[0] ?? /* create user */ }
-      },
-    }],
-  },
-  access: {
-    create: ({ req }) => verifySignature(req),  // Signed requests only
-    delete: ({ req }) => verifySignature(req),
-    update: ({ req }) => verifySignature(req),
-    read: ({ req }) => Boolean(req.user),
-  },
-  fields: [
-    { name: 'externalId', type: 'text', unique: true, index: true, required: true },
-    { name: 'name', type: 'text' },
-  ],
-}
-```
 
 ---
 
@@ -174,31 +328,71 @@ The plugin automatically configures the Users collection with:
 |--------|------|---------|-------------|
 | `payloadConfig` | `Promise<SanitizedConfig>` | **required** | Your Payload config promise |
 | `token` | `string` | **required** | Auth token for reconcile API endpoints |
-| `runOnBoot` | `boolean` | `true` | Run full reconcile on application startup |
+| `storage` | `SecondaryStorage` | **required** | Shared storage adapter |
+| `eventBus` | `EventBus` | **required** | Shared event bus |
 | `tickMs` | `number` | `1000` | Queue processing interval in ms |
 | `reconcileEveryMs` | `number` | `1800000` | Full reconcile interval in ms (30 min) |
-| `forceReset` | `boolean` | `false` | Force reset bootstrap state (testing only) |
 | `createAdmins` | `array` | `[]` | Admin users to create on boot |
+| `enableLogging` | `boolean` | `false` | Enable debug logging |
 
-### Queue Behavior
+### Payload Plugin Options
 
-| Setting | Value | Notes |
-|---------|-------|-------|
-| Page size | 500 users | Memory-efficient batch processing |
-| Retry base delay | `2^attempts × 1000ms` | Exponential backoff |
-| Max retry delay | 60,000ms | 1 minute cap |
-| Jitter | 0-500ms random | Prevents thundering herd |
-| Task deduplication | `${kind}:${userId}` | User ops take priority over reconcile |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `betterAuthClientOptions` | `object` | **required** | Auth client configuration |
+| `storage` | `SecondaryStorage` | **required** | Shared storage adapter |
+| `eventBus` | `EventBus` | **required** | Shared event bus |
+| `debug` | `boolean` | `false` | Enable debug logging |
+| `disabled` | `boolean` | `false` | Disable the plugin |
 
-### Admin Session Management
+---
 
-The system creates temporary admin users for internal API access:
+## Sync Flow
 
-| Setting | Format | Purpose |
-|---------|--------|---------|
-| Email | `${processId}-agent@sync-to-payload.agent` | Unique per process |
-| API Key | `sync-${processId.substr(0,8)}` | Easy identification |
-| Lifecycle | Auto-created/cleaned | Old sessions removed on bootstrap |
+### Startup Coordination
+
+The plugins use timestamp-based coordination to ensure reconciliation runs exactly once after both services are online.
+
+1. **Payload starts** → Sets `timestamp:payload` in storage, notifies via EventBus
+2. **Better Auth starts** → Checks timestamps:
+   - If `timestamp:payload > timestamp:better-auth`: Run reconciliation
+   - Otherwise: Subscribe to Payload timestamp changes via EventBus
+3. **On Payload restart** → Better Auth is notified via EventBus, triggers reconciliation
+
+```
+Payload starts:
+  ├── Set timestamp:payload = now() in storage
+  └── Notify via eventBus.notifyTimestampChange('payload', now())
+
+Better Auth starts:
+  ├── Get timestamp:payload from storage
+  ├── Get timestamp:better-auth from storage
+  │
+  ├── If payload_ts > ba_ts:
+  │   ├── Set timestamp:better-auth = now()
+  │   └── Run reconciliation
+  │
+  └── Else:
+      └── Subscribe to payload timestamp via eventBus
+```
+
+### User Sync (Queue-based)
+
+All user synchronization from Better Auth to Payload goes through the reconciliation queue:
+
+1. User operation in Better Auth triggers database hook
+2. Hook enqueues ensure/delete task to the queue
+3. Queue processes task with retry logic
+4. Payload user is created/updated/deleted
+
+### Session Validation
+
+1. Request hits Payload with session cookie
+2. Payload extracts token from cookie (first part before `.`)
+3. Payload reads session from `storage.get(token)`
+4. If valid and not expired, authenticate; otherwise reject
+5. On logout, Better Auth deletes session from storage
+6. Next request immediately sees session is gone
 
 ---
 
@@ -267,19 +461,19 @@ curl -X POST -H "x-reconcile-token: your-token" \
 
 | Prefix | Source |
 |--------|--------|
-| `[reconcile:xxx]` | General reconcile operations |
-| `[admin-session]` | Admin user management |
-| `[queue]` | Task processing |
+| `[payload]` | Payload plugin operations |
+| `[better-auth]` | Better Auth plugin operations |
+| `[reconcile]` | Reconcile queue operations |
 
 ### Common Issues
 
 | Issue | Solution |
 |-------|----------|
 | **Signature verification failures** | Ensure `BA_TO_PAYLOAD_SECRET` matches in both systems |
-| **Admin session errors** | Verify Better Auth has `admin` and `apiKey` plugins enabled |
-| **Queue stalling** | Check database connectivity and Better Auth API availability |
-| **Invalid Base64 errors** | Clear browser cookies, request new magic link |
-| **Reconcile token rejected** | Verify `RECONCILE_TOKEN` matches in all configurations |
+| **Session not found** | Check that the same `storage` is passed to both plugins |
+| **Reconciliation not running** | Verify timestamp coordination is working (check logs) |
+| **Redis connection errors** | Verify `REDIS_URL` and network connectivity |
+| **Session not in storage** | Ensure Better Auth plugin is passing `secondaryStorage` correctly |
 
 ---
 
@@ -297,6 +491,15 @@ curl -X POST -H "x-reconcile-token: your-token" \
 - Monitor for database connection limits with multiple processes
 - Consider read replicas for high-traffic reconciliation
 
+### Redis (for distributed deployments)
+
+- Use **both** `createRedisStorage` and `createRedisEventBus` for production
+- Redis EventBus requires 2 connections per process (publisher + subscriber)
+- Use Redis Cluster or Redis Sentinel for high availability
+- Configure appropriate maxmemory and eviction policies
+- Monitor Redis memory usage and connection counts
+- Sessions have automatic TTL, no manual cleanup needed
+
 ### Monitoring
 
 - Set up alerts for queue status endpoint
@@ -305,20 +508,12 @@ curl -X POST -H "x-reconcile-token: your-token" \
 
 ### Scaling
 
-- Each Node.js process creates its own admin session
-- Old admin sessions are cleaned up automatically on bootstrap
+- Each Payload instance shares state via SecondaryStorage
+- Use Redis storage for horizontal scaling
 - Adjust `reconcileEveryMs` based on user activity and consistency requirements
-
-### Orphan Cleanup
-
-The `RECONCILE_PRUNE=true` option deletes Payload users without corresponding Better Auth users.
-
-⚠️ **Use with caution**: This permanently deletes data. Only enable after verifying your sync is working correctly.
 
 ---
 
 ## License
 
 MIT
-
-

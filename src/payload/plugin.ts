@@ -1,8 +1,14 @@
 import type { ClientOptions } from 'better-auth'
 import type { Config } from 'payload'
 
+import type { EventBus } from '../eventBus/types'
+import type { SecondaryStorage } from '../storage/types'
+
 import { createUsersCollection } from '../collections/Users/index'
-import { triggerFullReconcile } from '../utils/payload-reconcile'
+import { createDeduplicatedLogger } from '../shared/deduplicatedLogger'
+
+// Key prefixes for storage
+const TIMESTAMP_PREFIX = 'timestamp:'
 
 export type BetterAuthClientOptions = {
   /**
@@ -27,7 +33,43 @@ export type BetterAuthPayloadPluginOptions = {
    */
   debug?: boolean
   disabled?: boolean
-  reconcileToken?: string
+  /**
+   * EventBus for timestamp-based coordination between plugins.
+   * Both plugins MUST share the same eventBus instance.
+   *
+   * Available implementations:
+   * - `createSqlitePollingEventBus()` - Uses SQLite for cross-process coordination
+   *
+   * @example
+   * // Create shared eventBus (e.g., in a separate file)
+   * import { createSqlitePollingEventBus } from 'payload-better-auth'
+   * import { DatabaseSync } from 'node:sqlite'
+   * const db = new DatabaseSync('.event-bus.db')
+   * export const eventBus = createSqlitePollingEventBus({ db })
+   */
+  eventBus: EventBus
+  /**
+   * Secondary storage for state coordination between Better Auth and Payload.
+   * Both plugins MUST share the same storage instance.
+   *
+   * Available storage adapters:
+   * - `createSqliteStorage()` - Uses Node.js 22+ native SQLite (no external dependencies)
+   * - `createRedisStorage(redis)` - Redis-backed, for distributed/multi-server production
+   *
+   * @example
+   * // Development (Node.js 22+)
+   * import { createSqliteStorage } from 'payload-better-auth'
+   * import { DatabaseSync } from 'node:sqlite'
+   * const db = new DatabaseSync('.sync-state.db')
+   * const storage = createSqliteStorage({ db })
+   *
+   * @example
+   * // Production (distributed)
+   * import { createRedisStorage } from 'payload-better-auth'
+   * import Redis from 'ioredis'
+   * const storage = createRedisStorage({ redis: new Redis() })
+   */
+  storage: SecondaryStorage
 }
 
 export const betterAuthPayloadPlugin =
@@ -36,31 +78,23 @@ export const betterAuthPayloadPlugin =
     const { externalBaseURL, internalBaseURL, ...restClientOptions } =
       pluginOptions.betterAuthClientOptions
     const debug = pluginOptions.debug ?? false
+    const { eventBus, storage } = pluginOptions
+
+    // Create deduplicated logger
+    const logger = createDeduplicatedLogger({
+      enabled: debug,
+      prefix: '[payload]',
+      storage,
+    })
 
     // Build internal and external auth client options
     const internalAuthClientOptions = { ...restClientOptions, baseURL: internalBaseURL }
     const externalAuthClientOptions = { ...restClientOptions, baseURL: externalBaseURL }
 
-    // Log plugin configuration at startup (excluding sensitive data)
-    if (debug) {
-      console.log('[payload-better-auth] Plugin initializing with configuration:')
-      console.log('[payload-better-auth]   - internalBaseURL:', internalBaseURL)
-      console.log('[payload-better-auth]   - externalBaseURL:', externalBaseURL)
-      console.log('[payload-better-auth]   - disabled:', pluginOptions.disabled ?? false)
-      console.log('[payload-better-auth]   - debug:', debug)
-      console.log(
-        '[payload-better-auth]   - reconcileToken:',
-        pluginOptions.reconcileToken ? '[REDACTED]' : 'not set',
-      )
-      console.log(
-        '[payload-better-auth]   - fetchOptions.headers:',
-        restClientOptions.fetchOptions?.headers ? '[configured]' : 'not set',
-      )
-    }
+    // Log plugin configuration at startup (deduplicated)
+    void logger.log('init', `Initialized (baseURL: ${internalBaseURL})`)
 
-    const Users = createUsersCollection({
-      authClientOptions: internalAuthClientOptions,
-    })
+    const Users = createUsersCollection({ storage })
     if (!config.collections) {
       config.collections = [Users]
     } else if (config.collections.find((col) => col.slug === 'users')) {
@@ -151,12 +185,16 @@ export const betterAuthPayloadPlugin =
       if (incomingOnInit) {
         await incomingOnInit(payload)
       }
-      await triggerFullReconcile({
-        additionalHeaders: restClientOptions.fetchOptions?.headers,
-        betterAuthUrl: internalBaseURL,
-        payload,
-        reconcileToken: pluginOptions.reconcileToken,
-      })
+
+      // Set Payload timestamp in storage - Better Auth will see this and trigger reconciliation
+      const timestamp = Date.now()
+      await storage.set(TIMESTAMP_PREFIX + 'payload', String(timestamp))
+      // Also notify via event bus for same-process subscribers
+      eventBus.notifyTimestampChange('payload', timestamp)
+      await logger.log('ready', 'Ready, waiting for Better Auth to sync')
+
+      // Note: User sync is now handled entirely by the reconcile queue on the Better Auth side.
+      // The queue enqueues ensure/delete tasks when users change, and processes them with retries.
     }
 
     return config
