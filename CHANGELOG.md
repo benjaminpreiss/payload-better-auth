@@ -1,3 +1,15 @@
+# [1.1.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.0.0...v1.1.0) (2026-01-11)
+
+
+### Bug Fixes
+
+* revert prepare script workaround ([381cba9](https://github.com/benjaminpreiss/payload-better-auth/commit/381cba95882c58ef8ea4c087ce564ea137b447fd))
+
+
+### Features
+
+* **ci:** enable npm trusted publishing with provenance ([ac9cccf](https://github.com/benjaminpreiss/payload-better-auth/commit/ac9cccffe8bf07bbbdb216038e0c9076b048f4b6))
+
 # 1.0.0 (2026-01-11)
 
 
