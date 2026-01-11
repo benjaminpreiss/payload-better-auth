@@ -1,0 +1,44 @@
+# 1.0.0 (2026-01-11)
+
+
+### Bug Fixes
+
+* adjust int test to reflect new auth methods endpoint ([940e87d](https://github.com/benjaminpreiss/payload-better-auth/commit/940e87d7ff58b6d2b9e989f844b3e7b5deeb2810))
+* allow passing additional headers to payload plugin ([b324ee7](https://github.com/benjaminpreiss/payload-better-auth/commit/b324ee75c188c0ec2c5311d480ea7e61b35cad5d))
+* **ci:** disable husky hooks during semantic-release ([b51ca61](https://github.com/benjaminpreiss/payload-better-auth/commit/b51ca6159c80d8c0ef1e67e168220050b5e48c25))
+* fix dev environment payload plugin options ([3e07289](https://github.com/benjaminpreiss/payload-better-auth/commit/3e072895363b5c9b8925818eaa247e61f70481cd))
+* fix magic link callback url ([894e5ec](https://github.com/benjaminpreiss/payload-better-auth/commit/894e5ece419d0c2127b05bea785041e4e27947c2))
+* fix passing serverProps to payload login components ([c8bc3a6](https://github.com/benjaminpreiss/payload-better-auth/commit/c8bc3a62e33dadce057b5b1e4030e80e6018c009))
+* fix payload plugin passing options to auth component ([e31f7f0](https://github.com/benjaminpreiss/payload-better-auth/commit/e31f7f0c1dd988f8ef7efa2d0aa953c598276f54))
+* improve package.json for install directly from github ([f0c4493](https://github.com/benjaminpreiss/payload-better-auth/commit/f0c4493cdb6738db55900ffad50e12713a975973))
+* include src in files published to npm ([b753b7c](https://github.com/benjaminpreiss/payload-better-auth/commit/b753b7c33a4c80ba6e52bad4237303bc5e0c7ae2))
+* make dist package json export paths relative ([e551e09](https://github.com/benjaminpreiss/payload-better-auth/commit/e551e09c82ba7cbacd0a70fb9c537e4c0a818b18))
+* remove better auth plugin init type error ([4a75bcb](https://github.com/benjaminpreiss/payload-better-auth/commit/4a75bcb541e5ee4fbeb2ef80eb137df6ee101262))
+* rename payload plugin baseUrl option ([63f5c32](https://github.com/benjaminpreiss/payload-better-auth/commit/63f5c325abbab1efbbaa1c0c1e8e105f3f71bcb4))
+* resolve Better Auth plugin integration issues ([763369a](https://github.com/benjaminpreiss/payload-better-auth/commit/763369a487dd3b5a379b0212b3d878b232c75524))
+* setup testing script ([46ca634](https://github.com/benjaminpreiss/payload-better-auth/commit/46ca634386019741384f920a6c78d98a9de13098))
+* switch from server url base detection to window.location.origin ([daf4ea1](https://github.com/benjaminpreiss/payload-better-auth/commit/daf4ea14c66f1f5ee955f34b395daa1c2e9b6397))
+
+
+### Features
+
+* add admin user creation and improve auth components ([a210e76](https://github.com/benjaminpreiss/payload-better-auth/commit/a210e766843d9dd9825d6faf90069807fa70f255))
+* add locale to user database ([294866c](https://github.com/benjaminpreiss/payload-better-auth/commit/294866cfad983e4621ae114c442bc9980c599f98))
+* add logging toggle to better-auth plugin ([795676f](https://github.com/benjaminpreiss/payload-better-auth/commit/795676fead952a74d19652792dbaefe24b116bed))
+* add magicLink login ([1ab9ff5](https://github.com/benjaminpreiss/payload-better-auth/commit/1ab9ff514ce25feaf582da5e1992c53f80ad4406))
+* add Nx caching for build, lint, and typecheck ([ed52b09](https://github.com/benjaminpreiss/payload-better-auth/commit/ed52b09a65483129d64b2a91b3f46d400f351062))
+* add pnpm workspace for npm package ([951e70f](https://github.com/benjaminpreiss/payload-better-auth/commit/951e70f5fb830b85bf82cf16c6a01391b99cbc01))
+* add semantic-release for automated versioning ([e3add4b](https://github.com/benjaminpreiss/payload-better-auth/commit/e3add4b5e995f6f8be70aa94055ecacb83272491))
+* add separate internal/external base URLs for server/client auth requests ([3a09b54](https://github.com/benjaminpreiss/payload-better-auth/commit/3a09b5436edb72ea3e262471dc78f15c8f2ff12c))
+* create basic better-auth sync solution ([2f442bf](https://github.com/benjaminpreiss/payload-better-auth/commit/2f442bf987b771b54a4874fce7c49178dc45da5b))
+* fix payload plugin options ([f9033c0](https://github.com/benjaminpreiss/payload-better-auth/commit/f9033c02927c7162936c0c9fe6dd0b05bb5e57a1))
+* further improve github publishing ([8d16c6a](https://github.com/benjaminpreiss/payload-better-auth/commit/8d16c6ab4699f523f70419ed92152f8669e566b7))
+* improve github publishing ([130b9bd](https://github.com/benjaminpreiss/payload-better-auth/commit/130b9bd0cba60b60d656b4406ee323841d9f3974))
+* init pnpm ([032d770](https://github.com/benjaminpreiss/payload-better-auth/commit/032d770c0192fb34e1c51e0c9665ba89226f5bb1))
+* integrate Better Auth authentication system ([9c9c3f8](https://github.com/benjaminpreiss/payload-better-auth/commit/9c9c3f855258c0289c4b8eaec567eca70cb44c03))
+* internalize db hooks and delete user in plugin ([d087d79](https://github.com/benjaminpreiss/payload-better-auth/commit/d087d7934f190419c07585e9ff08fdf303d4a375))
+* migrate to bundler moduleResolution for Turbopack compatibility ([943a0b3](https://github.com/benjaminpreiss/payload-better-auth/commit/943a0b39a562899c1e29f1c21316cb081fd0992f))
+* move code to package ([67ca385](https://github.com/benjaminpreiss/payload-better-auth/commit/67ca38541220c923c92d233aada7b3dbd45586eb))
+* move migrations to dev/ and improve build config ([c85f8d7](https://github.com/benjaminpreiss/payload-better-auth/commit/c85f8d7c766f58cc54bf97f6cfbfe54e1172ccce))
+* setup payload and better-auth plugins ([bf69c05](https://github.com/benjaminpreiss/payload-better-auth/commit/bf69c053f99152692336a52ab1678cf1104c10ca))
+* setup payload with sqlite ([04dfd1d](https://github.com/benjaminpreiss/payload-better-auth/commit/04dfd1dbc4ebd0c0e27b331e9d2a1c1de6cde6f5))
