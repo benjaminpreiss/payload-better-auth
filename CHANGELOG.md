@@ -1,3 +1,10 @@
+## [1.1.6](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.5...v1.1.6) (2026-01-11)
+
+
+### Bug Fixes
+
+* add repository field for npm provenance verification ([89e9b6a](https://github.com/benjaminpreiss/payload-better-auth/commit/89e9b6a317057e66bb9329c281ebc04be4a98d06))
+
 ## [1.1.5](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.4...v1.1.5) (2026-01-11)
 
 

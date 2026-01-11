@@ -1,6 +1,6 @@
 {
   "name": "payload-better-auth",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "A Payload CMS plugin that integrates Better Auth for seamless user authentication and management",
   "license": "MIT",
   "repository": {
