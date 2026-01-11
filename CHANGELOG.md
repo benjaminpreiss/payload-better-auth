@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.2...v1.1.3) (2026-01-11)
+
+
+### Bug Fixes
+
+* add explicit @semantic-release/npm for OIDC support ([e505ad8](https://github.com/benjaminpreiss/payload-better-auth/commit/e505ad8db304d0faf53344a681424fb2540cb4cd))
+
 ## [1.1.2](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.1...v1.1.2) (2026-01-11)
 
 
