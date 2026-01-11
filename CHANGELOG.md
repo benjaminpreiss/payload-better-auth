@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.1...v1.1.2) (2026-01-11)
+
+
+### Bug Fixes
+
+* trigger npm publish with trusted publishing ([53acca6](https://github.com/benjaminpreiss/payload-better-auth/commit/53acca61dcba1ddf46bfd0c18066113f9d032e6f))
+
 ## [1.1.1](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.0...v1.1.1) (2026-01-11)
 
 
