@@ -56,7 +56,7 @@
     "lint:fix:all": "eslint --fix --stats ./src ./dev ./dev/tests",
     "lint:fix": "eslint ./src --fix",
     "maildev": "maildev --smtp=1025 --web=1080",
-    "prepare": "husky",
+    "prepare": "node -e \"if (process.env.INIT_CWD === process.cwd()) require('husky')()\"",
     "prepublishOnly": "npm run clean && npm run build",
     "test": "npm run test:int && npm run test:e2e",
     "test:e2e": "npm run dev:build && dotenv -e ./dev/.env.test -- playwright test",
