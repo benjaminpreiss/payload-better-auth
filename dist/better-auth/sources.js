@@ -1,6 +1,6 @@
 // src/sources.ts
 import { getPayload } from 'payload';
-import { signCanonical } from './crypto-shared.js';
+import { signCanonical } from './crypto-shared';
 const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET;
 /** Create a function to load Payload users page by page via Local API. */ export function createListPayloadUsersPage(config) {
     return async function listPayloadUsersPage(limit, page) {

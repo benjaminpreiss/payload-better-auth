@@ -1,7 +1,7 @@
 // src/sources.ts
 import { getPayload, type SanitizedConfig } from 'payload'
 
-import { signCanonical } from './crypto-shared.js'
+import { signCanonical } from './crypto-shared'
 
 const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET!
 

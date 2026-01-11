@@ -1,7 +1,7 @@
 import type { betterAuth } from 'better-auth'
 import type { SanitizedConfig } from 'payload'
 
-import { createDeleteUserFromPayload, createSyncUserToPayload } from './sources.js'
+import { createDeleteUserFromPayload, createSyncUserToPayload } from './sources'
 
 export function createDatabaseHooks({
   config,

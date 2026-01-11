@@ -7,7 +7,7 @@ import Database from 'better-sqlite3'
 import { getPayload } from 'payload'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-import { auth } from '../../lib/auth.js'
+import { auth } from '../../lib/auth'
 
 type PayloadSyncPluginContext = { payloadSyncPlugin: { queue: Queue } } & AuthContext
 

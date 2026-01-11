@@ -1,1 +1,1 @@
-export { VerifyEmailInfoViewClient } from '../components/VerifyEmailInfoViewClient.js'
+export { VerifyEmailInfoViewClient } from '../components/VerifyEmailInfoViewClient'

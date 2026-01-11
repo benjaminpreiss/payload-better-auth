@@ -7,7 +7,7 @@ import { betterAuthPayloadPlugin } from 'payload-better-auth'
 import sharp from 'sharp'
 import { fileURLToPath } from 'url'
 
-import { testEmailAdapter } from './helpers/testEmailAdapter.js'
+import { testEmailAdapter } from './helpers/testEmailAdapter'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)

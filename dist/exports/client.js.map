@@ -1,1 +1,1 @@
-{"version":3,"sources":["../../src/exports/client.ts"],"sourcesContent":["export { VerifyEmailInfoViewClient } from '../components/VerifyEmailInfoViewClient.js'\n"],"names":["VerifyEmailInfoViewClient"],"mappings":"AAAA,SAASA,yBAAyB,QAAQ,6CAA4C"}
+{"version":3,"sources":["../../src/exports/client.ts"],"sourcesContent":["export { VerifyEmailInfoViewClient } from '../components/VerifyEmailInfoViewClient'\n"],"names":["VerifyEmailInfoViewClient"],"mappings":"AAAA,SAASA,yBAAyB,QAAQ,0CAAyC"}

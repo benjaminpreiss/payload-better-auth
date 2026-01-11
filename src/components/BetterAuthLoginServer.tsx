@@ -1,9 +1,9 @@
 import type { ClientOptions } from 'better-auth'
 import type React from 'react'
 
-import type { AuthMethod } from '../better-auth/helpers.js'
+import type { AuthMethod } from '../better-auth/helpers'
 
-import { EmailPasswordFormClient } from './EmailPasswordFormClient.js'
+import { EmailPasswordFormClient } from './EmailPasswordFormClient'
 
 export type AuthClientOptions = { baseURL: string } & Omit<ClientOptions, 'baseURL'>
 

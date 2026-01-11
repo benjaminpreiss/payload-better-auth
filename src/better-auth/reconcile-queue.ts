@@ -1,7 +1,7 @@
 import type { AuthContext } from 'better-auth'
 
 // src/reconcile-queue.ts
-import type { BAUser, PayloadUser } from './sources.js'
+import type { BAUser, PayloadUser } from './sources'
 
 export interface QueueDeps {
   deleteUserFromPayload: (baId: string) => Promise<void> // delete by externalId; ignore missing

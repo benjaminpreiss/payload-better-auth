@@ -1,3 +1,1 @@
 export { BetterAuthLoginServer } from '../components/BetterAuthLoginServer';
-
-//# sourceMappingURL=rsc.js.map

@@ -5,16 +5,16 @@ import type { SanitizedConfig } from 'payload'
 import { APIError } from 'better-auth/api'
 import { createAuthEndpoint, createAuthMiddleware } from 'better-auth/plugins'
 
-import type { AuthMethod } from './helpers.js'
+import type { AuthMethod } from './helpers'
 
-import { createDatabaseHooks } from './databaseHooks.js'
-import { type InitOptions, Queue } from './reconcile-queue.js'
+import { createDatabaseHooks } from './databaseHooks'
+import { type InitOptions, Queue } from './reconcile-queue'
 import {
   type BAUser,
   createDeleteUserFromPayload,
   createListPayloadUsersPage,
   createSyncUserToPayload,
-} from './sources.js'
+} from './sources'
 
 type PayloadSyncPluginContext = { payloadSyncPlugin: { queue: Queue } } & AuthContext
 

@@ -8,7 +8,7 @@ import { createAuthClient } from 'better-auth/react'
 import { useRouter } from 'next/navigation.js'
 import { useState } from 'react'
 
-import type { AuthMethod } from '../better-auth/helpers.js'
+import type { AuthMethod } from '../better-auth/helpers'
 
 interface FormErrors {
   email?: string

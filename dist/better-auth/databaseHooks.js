@@ -1,4 +1,4 @@
-import { createDeleteUserFromPayload, createSyncUserToPayload } from './sources.js';
+import { createDeleteUserFromPayload, createSyncUserToPayload } from './sources';
 export function createDatabaseHooks({ config }) {
     const syncUserToPayload = createSyncUserToPayload(config);
     const deleteUserFromPayload = createDeleteUserFromPayload(config);

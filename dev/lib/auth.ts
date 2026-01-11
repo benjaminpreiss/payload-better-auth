@@ -3,8 +3,8 @@ import { admin, apiKey, magicLink } from 'better-auth/plugins'
 import Database from 'better-sqlite3'
 import { payloadBetterAuthPlugin } from 'payload-better-auth'
 
-import buildConfig from '../payload.config.js'
-import { sendEmail } from './sendMails.js'
+import buildConfig from '../payload.config'
+import { sendEmail } from './sendMails'
 
 // Use environment-specific database path
 const dbPath = process.env.BETTER_AUTH_DB_PATH || './better-auth.db'

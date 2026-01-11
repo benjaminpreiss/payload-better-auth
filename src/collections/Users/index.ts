@@ -3,7 +3,7 @@ import type { AccessArgs, CollectionConfig, PayloadRequest, User } from 'payload
 import { createAuthClient } from 'better-auth/react'
 import { APIError } from 'payload'
 
-import { type CryptoSignature, verifyCanonical } from '../../better-auth/crypto-shared.js'
+import { type CryptoSignature, verifyCanonical } from '../../better-auth/crypto-shared'
 
 const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET!
 

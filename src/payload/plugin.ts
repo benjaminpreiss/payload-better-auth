@@ -1,8 +1,8 @@
 import type { ClientOptions } from 'better-auth'
 import type { Config } from 'payload'
 
-import { createUsersCollection } from '../collections/Users/index.js'
-import { triggerFullReconcile } from '../utils/payload-reconcile.js'
+import { createUsersCollection } from '../collections/Users/index'
+import { triggerFullReconcile } from '../utils/payload-reconcile'
 
 export type BetterAuthClientOptions = {
   /**

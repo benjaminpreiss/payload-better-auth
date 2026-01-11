@@ -1,9 +1,9 @@
 // src/plugins/reconcile-queue-plugin.ts
 import { APIError } from 'better-auth/api';
 import { createAuthEndpoint, createAuthMiddleware } from 'better-auth/plugins';
-import { createDatabaseHooks } from './databaseHooks.js';
-import { Queue } from './reconcile-queue.js';
-import { createDeleteUserFromPayload, createListPayloadUsersPage, createSyncUserToPayload } from './sources.js';
+import { createDatabaseHooks } from './databaseHooks';
+import { Queue } from './reconcile-queue';
+import { createDeleteUserFromPayload, createListPayloadUsersPage, createSyncUserToPayload } from './sources';
 const defaultLog = (msg, extra)=>{
     console.log(`[reconcile] ${msg}`, extra ? JSON.stringify(extra, null, 2) : '');
 };

@@ -1,6 +1,6 @@
 import { createAuthClient } from 'better-auth/react';
 import { APIError } from 'payload';
-import { verifyCanonical } from '../../better-auth/crypto-shared.js';
+import { verifyCanonical } from '../../better-auth/crypto-shared';
 const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET;
 const authenticated = ({ req: { user } })=>{
     return Boolean(user);

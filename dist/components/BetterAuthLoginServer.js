@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { EmailPasswordFormClient } from './EmailPasswordFormClient.js';
+import { EmailPasswordFormClient } from './EmailPasswordFormClient';
 export async function fetchAuthMethods({ additionalHeaders, betterAuthBaseUrl, debug = false }) {
     const headers = new Headers(additionalHeaders);
     headers.append('Content-Type', 'application/json');

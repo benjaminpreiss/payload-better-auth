@@ -1,1 +1,1 @@
-export { BetterAuthLoginServer } from '../components/BetterAuthLoginServer.js'
+export { BetterAuthLoginServer } from '../components/BetterAuthLoginServer'
