@@ -1,3 +1,10 @@
+# [3.1.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v3.0.0...v3.1.0) (2026-01-12)
+
+
+### Features
+
+* add custom logout button for Better Auth sign-out ([eda43b4](https://github.com/benjaminpreiss/payload-better-auth/commit/eda43b4ca084724b0cfb261127d0d778e9c89989))
+
 # [3.0.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v2.1.0...v3.0.0) (2026-01-12)
 
 
