@@ -113,6 +113,20 @@ export const betterAuthPayloadPlugin = (pluginOptions)=>(config)=>{
         } else {
             throw new Error('Payload-better-auth plugin: admin.components.views.verifyEmail property in config already set.');
         }
+        // Configure custom logout button that signs out from Better Auth
+        if (!config.admin.components.logout) {
+            config.admin.components.logout = {};
+        }
+        if (!config.admin.components.logout.Button) {
+            config.admin.components.logout.Button = {
+                clientProps: {
+                    authClientOptions: externalAuthClientOptions
+                },
+                path: 'payload-better-auth/client#LogoutButtonClient'
+            };
+        } else {
+            throw new Error('Payload-better-auth plugin: admin.components.logout.Button property in config already set.');
+        }
         if (!config.admin.routes) {
             config.admin.routes = {};
         }
