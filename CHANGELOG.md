@@ -1,3 +1,15 @@
+# [3.0.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v2.1.0...v3.0.0) (2026-01-12)
+
+
+* feat!: add Better Auth collections for auth method data ([8db5b8c](https://github.com/benjaminpreiss/payload-better-auth/commit/8db5b8c44d4c526f3c61fdbf8bc7af767eeff3bd))
+
+
+### BREAKING CHANGES
+
+* Users collection now has betterAuthAccounts
+polymorphic relationship field. BA collections store auth
+method data separately.
+
 # [2.1.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v2.0.0...v2.1.0) (2026-01-12)
 
 
