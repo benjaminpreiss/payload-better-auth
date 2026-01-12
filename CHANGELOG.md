@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v2.0.0...v2.1.0) (2026-01-12)
+
+
+### Features
+
+* add Redis dev testing and dynamic session cookie name support ([1c33a02](https://github.com/benjaminpreiss/payload-better-auth/commit/1c33a02182816d1d3d3274faa21a60cea1d2fd36))
+
 # [2.0.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v1.1.6...v2.0.0) (2026-01-11)
 
 
