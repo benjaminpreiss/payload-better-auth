@@ -1,7 +1,6 @@
 import { createUsersCollection } from '../collections/Users/index';
 import { createDeduplicatedLogger } from '../shared/deduplicatedLogger';
-// Key prefixes for storage
-const TIMESTAMP_PREFIX = 'timestamp:';
+import { TIMESTAMP_PREFIX } from '../storage/keys';
 export const betterAuthPayloadPlugin = (pluginOptions)=>(config)=>{
         const { externalBaseURL, internalBaseURL, ...restClientOptions } = pluginOptions.betterAuthClientOptions;
         const debug = pluginOptions.debug ?? false;

@@ -10,6 +10,7 @@ import type { SecondaryStorage } from '../storage/types'
 import type { AuthMethod } from './helpers'
 
 import { createDeduplicatedLogger } from '../shared/deduplicatedLogger'
+import { SESSION_COOKIE_NAME_KEY, TIMESTAMP_PREFIX } from '../storage/keys'
 import { type InitOptions, Queue } from './reconcile-queue'
 import {
   type BAUser,
@@ -25,9 +26,6 @@ type CreateAdminsUser = Parameters<AuthContext['internalAdapter']['createUser']>
 const defaultLog = (msg: string, extra?: unknown) => {
   console.log(`[reconcile] ${msg}`, extra ? JSON.stringify(extra, null, 2) : '')
 }
-
-// Key prefixes for storage
-const TIMESTAMP_PREFIX = 'timestamp:'
 
 export interface PayloadBetterAuthPluginOptions extends InitOptions {
   createAdmins?: { overwrite?: boolean; user: CreateAdminsUser }[]
@@ -220,7 +218,33 @@ export const payloadBetterAuthPlugin = (opts: PayloadBetterAuthPluginOptions): B
         },
       ],
     },
-    async init({ internalAdapter, password }) {
+    async init({ internalAdapter, options, password }) {
+      // Compute and store the session cookie name for Payload to read
+      // This accounts for cookiePrefix, custom cookie names, and __Secure- prefix
+      const cookiePrefix = options.advanced?.cookiePrefix ?? 'better-auth'
+      const customCookieName = options.advanced?.cookies?.session_token?.name
+      // Better Auth uses secure cookies when:
+      // 1. Explicitly set via useSecureCookies option
+      // 2. NODE_ENV is 'production'
+      // 3. baseURL starts with 'https://'
+      const isHttps = options.baseURL?.startsWith('https://') ?? false
+      const useSecureCookies =
+        options.advanced?.useSecureCookies ?? (process.env.NODE_ENV === 'production' || isHttps)
+
+      let sessionCookieName: string
+      if (customCookieName) {
+        // Custom cookie name takes precedence
+        sessionCookieName = useSecureCookies ? `__Secure-${customCookieName}` : customCookieName
+      } else {
+        // Default format: {prefix}.session_token
+        const baseName = `${cookiePrefix}.session_token`
+        sessionCookieName = useSecureCookies ? `__Secure-${baseName}` : baseName
+      }
+
+      // Store session cookie name in KV for Payload plugin to read
+      await storage.set(SESSION_COOKIE_NAME_KEY, sessionCookieName)
+      await logger.log('cookie-config', `Session cookie name: ${sessionCookieName}`)
+
       // Create admin users if configured
       if (opts.createAdmins) {
         try {

@@ -3,12 +3,39 @@
  * Both the Payload plugin and Better Auth plugin must use the SAME eventBus
  * for real-time event delivery to work.
  *
- * Using SQLite-backed EventBus with polling for cross-process communication.
- * This works correctly even when Turbopack spawns multiple worker processes.
+ * Supports two modes:
+ * - SQLite (default): Uses SQLite-backed polling for cross-process communication
+ * - Redis: Uses Redis Pub/Sub for real-time distributed events
+ *
+ * Set USE_REDIS=true to enable Redis mode.
  */
-import { DatabaseSync } from 'node:sqlite'
-import { createSqlitePollingEventBus } from 'payload-better-auth/eventBus'
+import type { EventBus } from 'payload-better-auth/eventBus'
 
-const db = new DatabaseSync('.event-bus.db')
+let eventBus: EventBus
 
-export const eventBus = createSqlitePollingEventBus({ db })
+if (process.env.USE_REDIS === 'true') {
+  // Dynamic import to avoid requiring ioredis when not using Redis
+  const { Redis } = await import('ioredis')
+  const { createRedisEventBus } = await import('payload-better-auth/eventBus')
+
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
+
+  // Redis Pub/Sub requires separate connections for publisher and subscriber
+  const publisher = new Redis(redisUrl)
+  const subscriber = new Redis(redisUrl)
+
+  eventBus = createRedisEventBus({ publisher, subscriber })
+
+  console.log('[eventBus] Using Redis Pub/Sub:', redisUrl)
+} else {
+  // Use SQLite-backed polling EventBus
+  const { DatabaseSync } = await import('node:sqlite')
+  const { createSqlitePollingEventBus } = await import('payload-better-auth/eventBus')
+
+  const db = new DatabaseSync('.event-bus.db')
+  eventBus = createSqlitePollingEventBus({ db })
+
+  console.log('[eventBus] Using SQLite polling')
+}
+
+export { eventBus }

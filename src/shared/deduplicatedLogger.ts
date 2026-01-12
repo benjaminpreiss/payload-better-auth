@@ -43,7 +43,7 @@ export interface CreateLoggerOptions {
   storage: SecondaryStorage
 }
 
-const LOG_KEY_PREFIX = 'log:msg:'
+import { LOG_KEY_PREFIX } from '../storage/keys'
 
 /**
  * Create a deduplicated logger instance.

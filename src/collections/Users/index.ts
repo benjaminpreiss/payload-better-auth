@@ -5,13 +5,10 @@ import { APIError } from 'payload'
 import type { SecondaryStorage } from '../../storage/types'
 
 import { type CryptoSignature, verifyCanonical } from '../../better-auth/crypto-shared'
+import { NONCE_PREFIX, SESSION_COOKIE_NAME_KEY } from '../../storage/keys'
 
 const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET!
 const NONCE_TTL_SECONDS = 5 * 60 // 5 minutes in seconds
-
-// Key prefixes for storage
-// Better Auth stores sessions WITHOUT a prefix - just the token as the key
-const NONCE_PREFIX = 'nonce:'
 
 type isAuthenticated = (args: AccessArgs<User>) => boolean
 const authenticated: isAuthenticated = ({ req: { user } }) => {
@@ -20,9 +17,13 @@ const authenticated: isAuthenticated = ({ req: { user } }) => {
 
 /**
  * Extract session token from cookies in headers.
- * Better Auth uses 'better-auth.session_token' cookie by default.
+ * Reads the cookie name from KV storage (set by Better Auth plugin).
+ * Falls back to 'better-auth.session_token' if config not found.
  */
-function extractSessionToken(headers: Headers): null | string {
+async function extractSessionToken(
+  headers: Headers,
+  storage: SecondaryStorage,
+): Promise<null | string> {
   const cookieHeader = headers.get('cookie')
   if (!cookieHeader) {
     return null
@@ -40,8 +41,11 @@ function extractSessionToken(headers: Headers): null | string {
     {} as Record<string, string>,
   )
 
-  // Better Auth session cookie name
-  return cookies['better-auth.session_token'] ?? null
+  // Get cookie name from storage (set by Better Auth plugin)
+  const sessionCookieName =
+    (await storage.get(SESSION_COOKIE_NAME_KEY)) ?? 'better-auth.session_token'
+
+  return cookies[sessionCookieName] ?? null
 }
 
 /**
@@ -139,7 +143,7 @@ export function createUsersCollection({ storage }: CreateUsersCollectionOptions)
           name: 'better-auth',
           authenticate: async ({ headers, payload }) => {
             // Get session token from cookie
-            const fullToken = extractSessionToken(headers)
+            const fullToken = await extractSessionToken(headers, storage)
             if (!fullToken) {
               return { user: null }
             }

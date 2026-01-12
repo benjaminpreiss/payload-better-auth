@@ -1,18 +1,17 @@
 import { APIError } from 'payload';
 import { verifyCanonical } from '../../better-auth/crypto-shared';
+import { NONCE_PREFIX, SESSION_COOKIE_NAME_KEY } from '../../storage/keys';
 const INTERNAL_SECRET = process.env.BA_TO_PAYLOAD_SECRET;
 const NONCE_TTL_SECONDS = 5 * 60 // 5 minutes in seconds
 ;
-// Key prefixes for storage
-// Better Auth stores sessions WITHOUT a prefix - just the token as the key
-const NONCE_PREFIX = 'nonce:';
 const authenticated = ({ req: { user } })=>{
     return Boolean(user);
 };
 /**
  * Extract session token from cookies in headers.
- * Better Auth uses 'better-auth.session_token' cookie by default.
- */ function extractSessionToken(headers) {
+ * Reads the cookie name from KV storage (set by Better Auth plugin).
+ * Falls back to 'better-auth.session_token' if config not found.
+ */ async function extractSessionToken(headers, storage) {
     const cookieHeader = headers.get('cookie');
     if (!cookieHeader) {
         return null;
@@ -25,8 +24,9 @@ const authenticated = ({ req: { user } })=>{
         }
         return acc;
     }, {});
-    // Better Auth session cookie name
-    return cookies['better-auth.session_token'] ?? null;
+    // Get cookie name from storage (set by Better Auth plugin)
+    const sessionCookieName = await storage.get(SESSION_COOKIE_NAME_KEY) ?? 'better-auth.session_token';
+    return cookies[sessionCookieName] ?? null;
 }
 /**
  * Create the signature verification function.
@@ -84,7 +84,7 @@ export function createUsersCollection({ storage }) {
                     name: 'better-auth',
                     authenticate: async ({ headers, payload })=>{
                         // Get session token from cookie
-                        const fullToken = extractSessionToken(headers);
+                        const fullToken = await extractSessionToken(headers, storage);
                         if (!fullToken) {
                             return {
                                 user: null

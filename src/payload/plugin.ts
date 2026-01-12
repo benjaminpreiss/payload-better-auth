@@ -6,9 +6,7 @@ import type { SecondaryStorage } from '../storage/types'
 
 import { createUsersCollection } from '../collections/Users/index'
 import { createDeduplicatedLogger } from '../shared/deduplicatedLogger'
-
-// Key prefixes for storage
-const TIMESTAMP_PREFIX = 'timestamp:'
+import { TIMESTAMP_PREFIX } from '../storage/keys'
 
 export type BetterAuthClientOptions = {
   /**

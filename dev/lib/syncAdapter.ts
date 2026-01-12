@@ -3,14 +3,36 @@
  * Both the Payload plugin and Better Auth plugin must use the SAME storage
  * for timestamp coordination and event synchronization to work.
  *
- * Using Node.js 22+ native SQLite which persists to disk - this survives
- * HMR cycles and process restarts, with no bundling issues.
+ * Supports two modes:
+ * - SQLite (default): Uses Node.js 22+ native SQLite, persists to disk
+ * - Redis: Uses ioredis, requires REDIS_URL environment variable
+ *
+ * Set USE_REDIS=true to enable Redis mode.
  */
-import { DatabaseSync } from 'node:sqlite'
-import { createSqliteStorage } from 'payload-better-auth/storage'
+import type { SecondaryStorage } from 'payload-better-auth/storage'
 
-// Open the SQLite database
-const db = new DatabaseSync('.dev-sync-state.db')
+let storage: SecondaryStorage
 
-// Create storage using the database
-export const storage = createSqliteStorage({ db })
+if (process.env.USE_REDIS === 'true') {
+  // Dynamic import to avoid requiring ioredis when not using Redis
+  const { Redis } = await import('ioredis')
+  const { createRedisStorage } = await import('payload-better-auth/storage')
+
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
+  const redis = new Redis(redisUrl)
+
+  storage = createRedisStorage({ redis })
+
+  console.log('[syncAdapter] Using Redis storage:', redisUrl)
+} else {
+  // Use Node.js native SQLite (Node 22+)
+  const { DatabaseSync } = await import('node:sqlite')
+  const { createSqliteStorage } = await import('payload-better-auth/storage')
+
+  const db = new DatabaseSync('.dev-sync-state.db')
+  storage = createSqliteStorage({ db })
+
+  console.log('[syncAdapter] Using SQLite storage')
+}
+
+export { storage }

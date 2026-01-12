@@ -166,6 +166,21 @@ pnpm dev
 
 The dev server starts at [http://localhost:3000](http://localhost:3000) with a mail server at port 1080.
 
+### Testing with Redis
+
+To test the Redis integration locally:
+
+```bash
+# Start Redis container
+pnpm docker:redis
+
+# Run dev server with Redis (instead of SQLite)
+pnpm dev:redis
+
+# Stop Redis when done
+pnpm docker:redis:stop
+```
+
 ### Git Hooks
 
 This project uses [Husky](https://typicode.github.io/husky/) for Git hooks:
@@ -209,6 +224,9 @@ pnpm add github:benjaminpreiss/payload-better-auth#v1.2.0
 | Script | Description |
 |--------|-------------|
 | `pnpm dev` | Start dev server with mail server |
+| `pnpm dev:redis` | Start dev server with Redis (instead of SQLite) |
+| `pnpm docker:redis` | Start Redis container via Docker Compose |
+| `pnpm docker:redis:stop` | Stop Redis container |
 | `pnpm build` | Build the plugin |
 | `pnpm reset` | Reset databases and run all migrations |
 | `pnpm test` | Run all tests |
