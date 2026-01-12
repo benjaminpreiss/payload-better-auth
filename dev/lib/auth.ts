@@ -1,3 +1,6 @@
+import type { User } from '@/payload-types'
+import type { CollectionSlug } from 'payload'
+
 import { betterAuth } from 'better-auth'
 import { admin, apiKey, magicLink } from 'better-auth/plugins'
 import Database from 'better-sqlite3'
@@ -18,15 +21,14 @@ export const auth = betterAuth({
   emailAndPassword: { enabled: true },
   plugins: [
     admin(), // Provides the listUsers API for user management
-    payloadBetterAuthPlugin({
-      createAdmins: [
-        {
-          overwrite: true,
-          user: { name: 'Sample admin', email: 'sample-admin@user.com', password: 'bubbletea' },
-        },
-      ],
+    payloadBetterAuthPlugin<User, CollectionSlug>({
       enableLogging: true, // Enable reconciliation logging
       eventBus, // Shared with Payload plugin
+      // Map Better Auth user data to Payload user fields
+      mapUserToPayload: (baUser) => ({
+        name: baUser.name ?? '',
+        email: baUser.email ?? '',
+      }),
       payloadConfig: buildConfig,
       reconcileEveryMs: 30 * 60_000,
       storage, // Shared with Payload plugin
@@ -35,7 +37,7 @@ export const auth = betterAuth({
     }),
     apiKey(),
     magicLink({
-      async sendMagicLink({ email, url }, request) {
+      async sendMagicLink({ email, url }, _request) {
         await sendEmail({
           html: `<!DOCTYPE html>
 <html>
@@ -46,7 +48,7 @@ export const auth = betterAuth({
       <a href="${url}">Sign in</a>
     </p>
     <p>
-      If the button doesn’t work, copy and paste this link into your browser:<br>
+      If the button doesn't work, copy and paste this link into your browser:<br>
       ${url}
     </p>
   </body>

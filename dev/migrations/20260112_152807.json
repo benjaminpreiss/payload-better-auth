@@ -2,6 +2,210 @@
   "version": "6",
   "dialect": "sqlite",
   "tables": {
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ba_user_id": {
+          "name": "ba_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "users_ba_user_id_idx": {
+          "name": "users_ba_user_id_idx",
+          "columns": [
+            "ba_user_id"
+          ],
+          "isUnique": true
+        },
+        "users_updated_at_idx": {
+          "name": "users_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "users_created_at_idx": {
+          "name": "users_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "users_rels": {
+      "name": "users_rels",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order": {
+          "name": "order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "better_auth_email_password_id": {
+          "name": "better_auth_email_password_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "better_auth_magic_link_id": {
+          "name": "better_auth_magic_link_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "users_rels_order_idx": {
+          "name": "users_rels_order_idx",
+          "columns": [
+            "order"
+          ],
+          "isUnique": false
+        },
+        "users_rels_parent_idx": {
+          "name": "users_rels_parent_idx",
+          "columns": [
+            "parent_id"
+          ],
+          "isUnique": false
+        },
+        "users_rels_path_idx": {
+          "name": "users_rels_path_idx",
+          "columns": [
+            "path"
+          ],
+          "isUnique": false
+        },
+        "users_rels_better_auth_email_password_id_idx": {
+          "name": "users_rels_better_auth_email_password_id_idx",
+          "columns": [
+            "better_auth_email_password_id"
+          ],
+          "isUnique": false
+        },
+        "users_rels_better_auth_magic_link_id_idx": {
+          "name": "users_rels_better_auth_magic_link_id_idx",
+          "columns": [
+            "better_auth_magic_link_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "users_rels_parent_fk": {
+          "name": "users_rels_parent_fk",
+          "tableFrom": "users_rels",
+          "tableTo": "users",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "users_rels_better_auth_email_password_fk": {
+          "name": "users_rels_better_auth_email_password_fk",
+          "tableFrom": "users_rels",
+          "tableTo": "better_auth_email_password",
+          "columnsFrom": [
+            "better_auth_email_password_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "users_rels_better_auth_magic_link_fk": {
+          "name": "users_rels_better_auth_magic_link_fk",
+          "tableFrom": "users_rels",
+          "tableTo": "better_auth_magic_link",
+          "columnsFrom": [
+            "better_auth_magic_link_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "posts": {
       "name": "posts",
       "columns": {
@@ -168,8 +372,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "users": {
-      "name": "users",
+    "better_auth_email_password": {
+      "name": "better_auth_email_password",
       "columns": {
         "id": {
           "name": "id",
@@ -178,19 +382,34 @@
           "notNull": true,
           "autoincrement": false
         },
-        "external_id": {
-          "name": "external_id",
+        "ba_account_id": {
+          "name": "ba_account_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "name": {
-          "name": "name",
+        "ba_user_id": {
+          "name": "ba_user_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -210,22 +429,120 @@
         }
       },
       "indexes": {
-        "users_external_id_idx": {
-          "name": "users_external_id_idx",
+        "better_auth_email_password_ba_account_id_idx": {
+          "name": "better_auth_email_password_ba_account_id_idx",
           "columns": [
-            "external_id"
+            "ba_account_id"
           ],
           "isUnique": true
         },
-        "users_updated_at_idx": {
-          "name": "users_updated_at_idx",
+        "better_auth_email_password_ba_user_id_idx": {
+          "name": "better_auth_email_password_ba_user_id_idx",
+          "columns": [
+            "ba_user_id"
+          ],
+          "isUnique": false
+        },
+        "better_auth_email_password_updated_at_idx": {
+          "name": "better_auth_email_password_updated_at_idx",
           "columns": [
             "updated_at"
           ],
           "isUnique": false
         },
-        "users_created_at_idx": {
-          "name": "users_created_at_idx",
+        "better_auth_email_password_created_at_idx": {
+          "name": "better_auth_email_password_created_at_idx",
+          "columns": [
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "better_auth_magic_link": {
+      "name": "better_auth_magic_link",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ba_account_id": {
+          "name": "ba_account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ba_user_id": {
+          "name": "ba_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
+        }
+      },
+      "indexes": {
+        "better_auth_magic_link_ba_account_id_idx": {
+          "name": "better_auth_magic_link_ba_account_id_idx",
+          "columns": [
+            "ba_account_id"
+          ],
+          "isUnique": true
+        },
+        "better_auth_magic_link_ba_user_id_idx": {
+          "name": "better_auth_magic_link_ba_user_id_idx",
+          "columns": [
+            "ba_user_id"
+          ],
+          "isUnique": false
+        },
+        "better_auth_magic_link_updated_at_idx": {
+          "name": "better_auth_magic_link_updated_at_idx",
+          "columns": [
+            "updated_at"
+          ],
+          "isUnique": false
+        },
+        "better_auth_magic_link_created_at_idx": {
+          "name": "better_auth_magic_link_created_at_idx",
           "columns": [
             "created_at"
           ],
@@ -369,6 +686,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "users_id": {
+          "name": "users_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "posts_id": {
           "name": "posts_id",
           "type": "integer",
@@ -383,8 +707,15 @@
           "notNull": false,
           "autoincrement": false
         },
-        "users_id": {
-          "name": "users_id",
+        "better_auth_email_password_id": {
+          "name": "better_auth_email_password_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "better_auth_magic_link_id": {
+          "name": "better_auth_magic_link_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -413,6 +744,13 @@
           ],
           "isUnique": false
         },
+        "payload_locked_documents_rels_users_id_idx": {
+          "name": "payload_locked_documents_rels_users_id_idx",
+          "columns": [
+            "users_id"
+          ],
+          "isUnique": false
+        },
         "payload_locked_documents_rels_posts_id_idx": {
           "name": "payload_locked_documents_rels_posts_id_idx",
           "columns": [
@@ -427,10 +765,17 @@
           ],
           "isUnique": false
         },
-        "payload_locked_documents_rels_users_id_idx": {
-          "name": "payload_locked_documents_rels_users_id_idx",
+        "payload_locked_documents_rels_better_auth_email_password_idx": {
+          "name": "payload_locked_documents_rels_better_auth_email_password_idx",
           "columns": [
-            "users_id"
+            "better_auth_email_password_id"
+          ],
+          "isUnique": false
+        },
+        "payload_locked_documents_rels_better_auth_magic_link_id_idx": {
+          "name": "payload_locked_documents_rels_better_auth_magic_link_id_idx",
+          "columns": [
+            "better_auth_magic_link_id"
           ],
           "isUnique": false
         }
@@ -442,6 +787,19 @@
           "tableTo": "payload_locked_documents",
           "columnsFrom": [
             "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_users_fk": {
+          "name": "payload_locked_documents_rels_users_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "users",
+          "columnsFrom": [
+            "users_id"
           ],
           "columnsTo": [
             "id"
@@ -475,12 +833,25 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_users_fk": {
-          "name": "payload_locked_documents_rels_users_fk",
+        "payload_locked_documents_rels_better_auth_email_password_fk": {
+          "name": "payload_locked_documents_rels_better_auth_email_password_fk",
           "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "users",
+          "tableTo": "better_auth_email_password",
           "columnsFrom": [
-            "users_id"
+            "better_auth_email_password_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_better_auth_magic_link_fk": {
+          "name": "payload_locked_documents_rels_better_auth_magic_link_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "better_auth_magic_link",
+          "columnsFrom": [
+            "better_auth_magic_link_id"
           ],
           "columnsTo": [
             "id"
@@ -735,6 +1106,6 @@
   "internal": {
     "indexes": {}
   },
-  "id": "05a9bb4c-2185-4a17-a11f-e0fd7622917c",
+  "id": "73fb592d-9174-4228-86e0-3e6056511fab",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

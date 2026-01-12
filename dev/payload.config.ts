@@ -25,6 +25,45 @@ export default buildConfig({
     },
   },
   collections: [
+    // Custom users collection - will be auto-extended by betterAuthPayloadPlugin
+    {
+      slug: 'users',
+      admin: {
+        defaultColumns: ['email', 'name', 'createdAt'],
+        useAsTitle: 'email',
+      },
+      fields: [
+        {
+          name: 'email',
+          type: 'email',
+          required: true,
+          // Email cannot be updated by users (only BA sync agent can update)
+          access: {
+            update: () => false,
+          },
+        },
+        {
+          name: 'name',
+          type: 'text',
+          // Users can update their own name
+          access: {
+            update: ({ req }) => Boolean(req.user),
+          },
+        },
+      ],
+      // Custom access rules - BA sync access is automatically OR'd with these
+      access: {
+        read: ({ req }) => Boolean(req.user), // authenticated users can read
+        // Users can only update their own record
+        update: ({ req }) => {
+          if (!req.user) {
+            return false
+          }
+          // Return a query constraint: user can only update docs where id matches their own
+          return { id: { equals: req.user.id } }
+        },
+      },
+    },
     {
       slug: 'posts',
       fields: [],
@@ -52,6 +91,7 @@ export default buildConfig({
         externalBaseURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
         internalBaseURL: process.env.INTERNAL_SERVER_URL || 'http://localhost:3000',
       },
+      collectionPrefix: '__better_auth', // optional, this is the default
       debug: true,
       eventBus, // Shared with Better Auth plugin
       storage, // Shared with Better Auth plugin

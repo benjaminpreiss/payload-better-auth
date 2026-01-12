@@ -1,5 +1,5 @@
 import type { ClientOptions } from 'better-auth';
-import type { Config } from 'payload';
+import type { Access, Config } from 'payload';
 import type { EventBus } from '../eventBus/types';
 import type { SecondaryStorage } from '../storage/types';
 export type BetterAuthClientOptions = {
@@ -17,10 +17,32 @@ export type BetterAuthClientOptions = {
     internalBaseURL: string;
 } & Omit<ClientOptions, 'baseURL'>;
 export type BetterAuthPayloadPluginOptions = {
+    /**
+     * Custom access rules for Better Auth collections (email_password, magic_link).
+     * These override the default debug-mode access (which allows read for authenticated users).
+     *
+     * @example
+     * baCollectionsAccess: {
+     *   read: ({ req }) => req.user?.role === 'admin',
+     *   delete: ({ req }) => req.user?.role === 'admin',
+     * }
+     */
+    baCollectionsAccess?: {
+        delete?: Access;
+        read?: Access;
+    };
     betterAuthClientOptions: BetterAuthClientOptions;
     /**
-     * Enable debug logging for troubleshooting connection issues.
-     * When enabled, detailed error information will be logged during auth method fetching.
+     * Prefix for Better Auth collections (default: '__better_auth').
+     * The collections will be named: {prefix}_email_password, {prefix}_magic_link
+     */
+    collectionPrefix?: string;
+    /**
+     * Enable debug logging and make BA collections visible in admin.
+     * When enabled:
+     * - Detailed error information will be logged
+     * - BA collections are visible under "Better Auth (DEBUG)" group
+     * - Authenticated users can read BA collections (unless baCollectionsAccess overrides)
      */
     debug?: boolean;
     disabled?: boolean;

@@ -1,10 +1,13 @@
-import { createUsersCollection } from '../collections/Users/index';
+import { createEmailPasswordCollection } from '../collections/BetterAuth/emailPassword';
+import { createMagicLinkCollection } from '../collections/BetterAuth/magicLink';
+import { extendUsersCollection } from '../collections/Users/index';
 import { createDeduplicatedLogger } from '../shared/deduplicatedLogger';
 import { TIMESTAMP_PREFIX } from '../storage/keys';
 export const betterAuthPayloadPlugin = (pluginOptions)=>(config)=>{
         const { externalBaseURL, internalBaseURL, ...restClientOptions } = pluginOptions.betterAuthClientOptions;
         const debug = pluginOptions.debug ?? false;
-        const { eventBus, storage } = pluginOptions;
+        const collectionPrefix = pluginOptions.collectionPrefix ?? '__better_auth';
+        const { baCollectionsAccess, eventBus, storage } = pluginOptions;
         // Create deduplicated logger
         const logger = createDeduplicatedLogger({
             enabled: debug,
@@ -22,18 +25,46 @@ export const betterAuthPayloadPlugin = (pluginOptions)=>(config)=>{
         };
         // Log plugin configuration at startup (deduplicated)
         void logger.log('init', `Initialized (baseURL: ${internalBaseURL})`);
-        const Users = createUsersCollection({
+        // Determine BA collection access:
+        // 1. If baCollectionsAccess is provided, use it (overrides debug defaults)
+        // 2. If debug is enabled, allow authenticated users to read
+        // 3. Otherwise, no custom access (only BA sync agent)
+        const effectiveBaAccess = baCollectionsAccess ? baCollectionsAccess : debug ? {
+            read: ({ req })=>Boolean(req.user)
+        } : undefined;
+        // Initialize collections array if not present
+        if (!config.collections) {
+            config.collections = [];
+        }
+        // Create BA collections
+        const emailPasswordCollection = createEmailPasswordCollection({
+            access: effectiveBaAccess,
+            isVisible: debug,
+            prefix: collectionPrefix,
             storage
         });
-        if (!config.collections) {
-            config.collections = [
-                Users
-            ];
-        } else if (config.collections.find((col)=>col.slug === 'users')) {
-            throw new Error('Payload-better-auth plugin: Users collection already present');
+        const magicLinkCollection = createMagicLinkCollection({
+            access: effectiveBaAccess,
+            isVisible: debug,
+            prefix: collectionPrefix,
+            storage
+        });
+        // Find and extend existing users collection, or create minimal one
+        const existingUsersIndex = config.collections.findIndex((col)=>col.slug === 'users');
+        const existingUsersCollection = existingUsersIndex >= 0 ? config.collections[existingUsersIndex] : undefined;
+        const extendedUsersCollection = extendUsersCollection(existingUsersCollection, {
+            collectionPrefix,
+            storage
+        });
+        // Replace or add the users collection
+        if (existingUsersIndex >= 0) {
+            config.collections[existingUsersIndex] = extendedUsersCollection;
         } else {
-            config.collections.push(Users);
+            config.collections.push(extendedUsersCollection);
         }
+        // Add BA collections
+        config.collections.push(emailPasswordCollection);
+        config.collections.push(magicLinkCollection);
         /**
      * If the plugin is disabled, we still want to keep added collections/fields so the database schema is consistent which is important for migrations.
      * If your plugin heavily modifies the database schema, you may want to remove this property.
@@ -47,8 +78,8 @@ export const betterAuthPayloadPlugin = (pluginOptions)=>(config)=>{
             config.admin = {};
         }
         if (!config.admin.user) {
-            config.admin.user = Users.slug;
-        } else if (config.admin.user !== Users.slug) {
+            config.admin.user = extendedUsersCollection.slug;
+        } else if (config.admin.user !== extendedUsersCollection.slug) {
             throw new Error('Payload-better-auth plugin: admin.user property already set with conflicting value.');
         }
         if (!config.admin.components) {
@@ -101,7 +132,33 @@ export const betterAuthPayloadPlugin = (pluginOptions)=>(config)=>{
             await storage.set(TIMESTAMP_PREFIX + 'payload', String(timestamp));
             // Also notify via event bus for same-process subscribers
             eventBus.notifyTimestampChange('payload', timestamp);
-            await logger.log('ready', 'Ready, waiting for Better Auth to sync');
+            await logger.log('ready', 'Ready, triggering Better Auth initialization');
+            // Trigger Better Auth initialization by calling the warmup endpoint
+            // Better Auth plugins are lazy-initialized on first request
+            try {
+                const warmupUrl = `${internalBaseURL}/api/auth/warmup`;
+                const response = await fetch(warmupUrl, {
+                    headers: {
+                        'User-Agent': 'Payload-Better-Auth-Warmup'
+                    },
+                    method: 'GET'
+                });
+                if (response.ok) {
+                    const info = await response.json();
+                    await logger.log('warmup', 'Better Auth initialized', {
+                        authMethods: info.authMethods
+                    });
+                } else {
+                    await logger.log('warmup-error', 'Better Auth warmup returned error', {
+                        status: response.status
+                    });
+                }
+            } catch (error) {
+                // Log but don't fail - Better Auth will initialize on first real request
+                await logger.log('warmup-error', 'Failed to warm up Better Auth (will init on first request)', {
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
         // Note: User sync is now handled entirely by the reconcile queue on the Better Auth side.
         // The queue enqueues ensure/delete tasks when users change, and processes them with retries.
         };

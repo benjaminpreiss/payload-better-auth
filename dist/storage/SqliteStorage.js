@@ -1,4 +1,26 @@
 /**
+ * Helper to run a database operation with retry logic for "database is locked" errors.
+ */ function withRetry(operation, maxRetries = 3) {
+    let retries = maxRetries;
+    while(retries > 0){
+        try {
+            return operation();
+        } catch (error) {
+            if (retries > 1 && error instanceof Error && (error.message.includes('database is locked') || error.message.includes('SQLITE_BUSY'))) {
+                retries--;
+                // Small delay before retry using exponential backoff
+                const delay = (maxRetries - retries + 1) * 50 // 50ms, 100ms, 150ms
+                ;
+                Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
+            } else {
+                throw error;
+            }
+        }
+    }
+    // This shouldn't be reached, but TypeScript needs it
+    throw new Error('Retry exhausted');
+}
+/**
  * Global key for cleanup interval to survive HMR.
  */ const CLEANUP_KEY = '__payloadBetterAuthSqliteCleanup__';
 function getCleanupState() {
@@ -37,14 +59,25 @@ function getCleanupState() {
     }
     const { db } = options;
     const cleanupState = getCleanupState();
+    // Enable WAL mode for better concurrent access from multiple processes
+    // This allows concurrent reads and writes from different processes
+    try {
+        db.exec('PRAGMA journal_mode=WAL');
+        db.exec('PRAGMA busy_timeout=5000'); // Wait up to 5s if database is locked
+        db.exec('PRAGMA synchronous=NORMAL'); // Slightly faster while still safe with WAL
+    } catch  {
+    // Ignore PRAGMA errors (might fail in read-only mode)
+    }
     // Create table if not exists
-    db.exec(`
-    CREATE TABLE IF NOT EXISTS kv (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      expires_at INTEGER
-    )
-  `);
+    withRetry(()=>{
+        db.exec(`
+      CREATE TABLE IF NOT EXISTS kv (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        expires_at INTEGER
+      )
+    `);
+    });
     // Prepare statements for better performance
     const getStmt = db.prepare('SELECT value, expires_at FROM kv WHERE key = ?');
     const setStmt = db.prepare('INSERT OR REPLACE INTO kv (key, value, expires_at) VALUES (?, ?, ?)');
@@ -53,7 +86,11 @@ function getCleanupState() {
     // Start cleanup interval if not already running
     if (!cleanupState.interval) {
         cleanupState.interval = setInterval(()=>{
-            cleanupStmt.run(Date.now());
+            try {
+                withRetry(()=>cleanupStmt.run(Date.now()));
+            } catch  {
+            // Silently ignore cleanup errors - will retry on next interval
+            }
         }, 60_000);
         // Don't prevent Node.js from exiting
         if (typeof cleanupState.interval.unref === 'function') {
@@ -62,24 +99,24 @@ function getCleanupState() {
     }
     return {
         delete (key) {
-            deleteStmt.run(key);
+            withRetry(()=>deleteStmt.run(key));
             return Promise.resolve();
         },
         get (key) {
-            const row = getStmt.get(key);
+            const row = withRetry(()=>getStmt.get(key));
             if (!row) {
                 return Promise.resolve(null);
             }
             // Check expiration
             if (row.expires_at !== null && row.expires_at < Date.now()) {
-                deleteStmt.run(key);
+                withRetry(()=>deleteStmt.run(key));
                 return Promise.resolve(null);
             }
             return Promise.resolve(row.value);
         },
         set (key, value, ttl) {
             const expiresAt = ttl ? Date.now() + ttl * 1000 : null;
-            setStmt.run(key, value, expiresAt);
+            withRetry(()=>setStmt.run(key, value, expiresAt));
             return Promise.resolve();
         }
     };

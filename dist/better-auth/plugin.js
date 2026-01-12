@@ -36,7 +36,10 @@ const defaultLog = (msg, extra)=>{
     };
 }
 export const payloadBetterAuthPlugin = (opts)=>{
-    const { eventBus, storage } = opts;
+    const { collectionPrefix = '__better_auth', eventBus, mapUserToPayload, storage, usersSlug = 'users' } = opts;
+    // Compute derived collection slugs
+    const emailPasswordSlug = `${collectionPrefix}_email_password`;
+    const magicLinkSlug = `${collectionPrefix}_magic_link`;
     // Create deduplicated logger
     const logger = createDeduplicatedLogger({
         enabled: opts.enableLogging ?? false,
@@ -50,29 +53,6 @@ export const payloadBetterAuthPlugin = (opts)=>{
     return {
         id: 'reconcile-queue-plugin',
         endpoints: {
-            run: createAuthEndpoint('/reconcile/run', {
-                method: 'POST'
-            }, async ({ context, json, request })=>{
-                if (opts.token && request?.headers.get('x-reconcile-token') !== opts.token) {
-                    throw new APIError('UNAUTHORIZED', {
-                        message: 'invalid token'
-                    });
-                }
-                await context.payloadSyncPlugin.queue.seedFullReconcile();
-                return json({
-                    ok: true
-                });
-            }),
-            status: createAuthEndpoint('/reconcile/status', {
-                method: 'GET'
-            }, async ({ context, json, request })=>{
-                if (opts.token && request?.headers.get('x-reconcile-token') !== opts.token) {
-                    return Promise.reject(new APIError('UNAUTHORIZED', {
-                        message: 'invalid token'
-                    }));
-                }
-                return json(context.payloadSyncPlugin.queue.status());
-            }),
             // convenience for tests/admin tools (optional)
             authMethods: createAuthEndpoint('/auth/methods', {
                 method: 'GET'
@@ -135,6 +115,48 @@ export const payloadBetterAuthPlugin = (opts)=>{
                 return json({
                     ok: true
                 });
+            }),
+            run: createAuthEndpoint('/reconcile/run', {
+                method: 'POST'
+            }, async ({ context, json, request })=>{
+                if (opts.token && request?.headers.get('x-reconcile-token') !== opts.token) {
+                    throw new APIError('UNAUTHORIZED', {
+                        message: 'invalid token'
+                    });
+                }
+                await context.payloadSyncPlugin.queue.seedFullReconcile();
+                return json({
+                    ok: true
+                });
+            }),
+            status: createAuthEndpoint('/reconcile/status', {
+                method: 'GET'
+            }, async ({ context, json, request })=>{
+                if (opts.token && request?.headers.get('x-reconcile-token') !== opts.token) {
+                    return Promise.reject(new APIError('UNAUTHORIZED', {
+                        message: 'invalid token'
+                    }));
+                }
+                return json(context.payloadSyncPlugin.queue.status());
+            }),
+            // Warmup endpoint - triggers plugin initialization without auth
+            // Returns basic instance info
+            warmup: createAuthEndpoint('/warmup', {
+                method: 'GET'
+            }, async ({ context, json })=>{
+                const authMethods = [];
+                if (context.options.emailAndPassword?.enabled) {
+                    authMethods.push('emailAndPassword');
+                }
+                if (context.options.plugins?.some((p)=>p.id === 'magic-link')) {
+                    authMethods.push('magicLink');
+                }
+                return json({
+                    authMethods,
+                    initialized: true,
+                    pluginId: 'reconcile-queue-plugin',
+                    timestamp: new Date().toISOString()
+                });
             })
         },
         hooks: {
@@ -158,7 +180,9 @@ export const payloadBetterAuthPlugin = (opts)=>{
                 }
             ]
         },
-        async init ({ internalAdapter, options, password }) {
+        async init ({ internalAdapter, options }) {
+            // Always log init start for debugging
+            logger.always('Plugin init started');
             // Compute and store the session cookie name for Payload to read
             // This accounts for cookiePrefix, custom cookie names, and __Secure- prefix
             const cookiePrefix = options.advanced?.cookiePrefix ?? 'better-auth';
@@ -181,50 +205,15 @@ export const payloadBetterAuthPlugin = (opts)=>{
             // Store session cookie name in KV for Payload plugin to read
             await storage.set(SESSION_COOKIE_NAME_KEY, sessionCookieName);
             await logger.log('cookie-config', `Session cookie name: ${sessionCookieName}`);
-            // Create admin users if configured
-            if (opts.createAdmins) {
-                try {
-                    await Promise.all(opts.createAdmins.map(async ({ overwrite, user })=>{
-                        const alreadyExistingUser = await internalAdapter.findUserByEmail(user.email);
-                        if (alreadyExistingUser) {
-                            if (overwrite) {
-                                // clear accounts
-                                await internalAdapter.deleteAccounts(alreadyExistingUser.user.id);
-                                const createdUser = await internalAdapter.updateUser(alreadyExistingUser.user.id, {
-                                    ...user,
-                                    role: 'admin'
-                                });
-                                await internalAdapter.linkAccount({
-                                    accountId: createdUser.id,
-                                    password: await password.hash(user.password),
-                                    providerId: 'credential',
-                                    userId: createdUser.id
-                                });
-                            }
-                        } else {
-                            const createdUser = await internalAdapter.createUser({
-                                ...user,
-                                role: 'admin'
-                            });
-                            await internalAdapter.linkAccount({
-                                accountId: createdUser.id,
-                                password: await password.hash(user.password),
-                                providerId: 'credential',
-                                userId: createdUser.id
-                            });
-                        }
-                    }));
-                } catch (error) {
-                    logger.always('Failed to create Admin user', error);
-                }
-            }
             // Create the reconciliation queue
             const queue = new Queue({
-                deleteUserFromPayload: createDeleteUserFromPayload(opts.payloadConfig),
+                collectionPrefix,
+                deleteUserFromPayload: createDeleteUserFromPayload(opts.payloadConfig, emailPasswordSlug, magicLinkSlug, usersSlug),
                 internalAdapter,
-                listPayloadUsersPage: createListPayloadUsersPage(opts.payloadConfig),
+                listPayloadUsersPage: createListPayloadUsersPage(opts.payloadConfig, usersSlug),
                 log: queueLog,
-                syncUserToPayload: createSyncUserToPayload(opts.payloadConfig)
+                mapUserToPayload,
+                syncUserToPayload: createSyncUserToPayload(opts.payloadConfig, emailPasswordSlug, magicLinkSlug, usersSlug, mapUserToPayload)
             }, {
                 ...opts,
                 // Don't run reconcile on boot - we use timestamp-based coordination instead
@@ -262,9 +251,13 @@ export const payloadBetterAuthPlugin = (opts)=>{
             const payloadTs = payloadTsStr ? parseInt(payloadTsStr, 10) : null;
             const baTs = baTsStr ? parseInt(baTsStr, 10) : null;
             // Determine reconciliation state
+            logger.always('Checking reconciliation state', {
+                baTs: baTs ? new Date(baTs).toISOString() : null,
+                payloadTs: payloadTs ? new Date(payloadTs).toISOString() : null
+            });
             if (payloadTs === null) {
                 // Payload hasn't started yet
-                await logger.log('status', 'Waiting for Payload to start...');
+                logger.always('Waiting for Payload to start...');
                 unsubscribeFromPayload = eventBus.subscribeToTimestamp('payload', ()=>{
                     attemptReconciliation().catch((err)=>{
                         logger.always('Sync attempt failed', err);
@@ -272,17 +265,19 @@ export const payloadBetterAuthPlugin = (opts)=>{
                 });
             } else if (baTs === null) {
                 // First run - always sync
+                logger.always('First run - triggering initial sync');
                 attemptReconciliation().catch((err)=>{
                     logger.always('Initial sync failed', err);
                 });
             } else if (payloadTs > baTs) {
                 // Payload restarted since last reconcile - sync needed
+                logger.always('Payload restarted - triggering sync');
                 attemptReconciliation().catch((err)=>{
                     logger.always('Sync failed', err);
                 });
             } else {
                 // Already reconciled and up-to-date
-                await logger.log('status', 'Already synchronized', {
+                logger.always('Already synchronized', {
                     lastSync: new Date(baTs).toISOString()
                 });
                 unsubscribeFromPayload = eventBus.subscribeToTimestamp('payload', ()=>{

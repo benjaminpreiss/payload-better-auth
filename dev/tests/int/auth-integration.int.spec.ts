@@ -55,13 +55,33 @@ describe('Better Auth Integration', () => {
       const betterAuthUser = getUserStmt.get(userEmail) as { id: string } | undefined
 
       if (betterAuthUser) {
-        // Delete from Payload first (using externalId)
+        // Delete BA collection entries first
+        try {
+          const emailPasswordEntries = await payload.find({
+            collection: '__better_auth_email_password',
+            limit: 100,
+            overrideAccess: true,
+            where: { baUserId: { equals: betterAuthUser.id } },
+          })
+          for (const entry of emailPasswordEntries.docs) {
+            await payload.delete({
+              id: entry.id,
+              collection: '__better_auth_email_password',
+              overrideAccess: true,
+            })
+          }
+        } catch (_e) {
+          // Ignore
+        }
+
+        // Delete from Payload (using baUserId)
         try {
           const existingPayloadUsers = await payload.find({
             collection: 'users',
             limit: 1,
+            overrideAccess: true,
             where: {
-              externalId: {
+              baUserId: {
                 equals: betterAuthUser.id,
               },
             },
@@ -71,6 +91,7 @@ describe('Better Auth Integration', () => {
             await payload.delete({
               id: existingPayloadUsers.docs[0].id,
               collection: 'users',
+              overrideAccess: true,
             })
           }
         } catch (_payloadError) {
@@ -89,22 +110,29 @@ describe('Better Auth Integration', () => {
         )
         deleteSessionsStmt.run(userEmail)
       }
+
+      // Delete accounts from better-auth
+      if (betterAuthUser) {
+        const deleteAccountsStmt = db.prepare('DELETE FROM account WHERE userId = ?')
+        deleteAccountsStmt.run(betterAuthUser.id)
+      }
     } catch (_error) {
       // Database error or user doesn't exist - this is expected in most cases
     }
   }
 
   /**
-   * Helper function to find Payload user by externalId
+   * Helper function to find Payload user by baUserId
    */
-  async function findPayloadUserByExternalId(externalId: string) {
+  async function findPayloadUserByBaUserId(baUserId: string) {
     try {
       const result = await payload.find({
         collection: 'users',
         limit: 1,
+        overrideAccess: true,
         where: {
-          externalId: {
-            equals: externalId,
+          baUserId: {
+            equals: baUserId,
           },
         },
       })
@@ -133,7 +161,7 @@ describe('Better Auth Integration', () => {
 
       // For create operations, check if the user exists in Payload
       if (operation === 'create') {
-        const payloadUser = await findPayloadUserByExternalId(targetUserId)
+        const payloadUser = await findPayloadUserByBaUserId(targetUserId)
         if (payloadUser) {
           return // User successfully created in Payload
         }
@@ -141,7 +169,7 @@ describe('Better Auth Integration', () => {
 
       // For delete operations, check if the user no longer exists in Payload
       if (operation === 'delete') {
-        const payloadUser = await findPayloadUserByExternalId(targetUserId)
+        const payloadUser = await findPayloadUserByBaUserId(targetUserId)
         if (!payloadUser) {
           return // User successfully deleted from Payload
         }
@@ -155,12 +183,12 @@ describe('Better Auth Integration', () => {
 
         // Check again
         if (operation === 'create') {
-          const payloadUser = await findPayloadUserByExternalId(targetUserId)
+          const payloadUser = await findPayloadUserByBaUserId(targetUserId)
           if (payloadUser) {
             return
           }
         } else {
-          const payloadUser = await findPayloadUserByExternalId(targetUserId)
+          const payloadUser = await findPayloadUserByBaUserId(targetUserId)
           if (!payloadUser) {
             return
           }
@@ -180,7 +208,7 @@ describe('Better Auth Integration', () => {
     const finalStatus = (
       (await auth.$context) as PayloadSyncPluginContext
     ).payloadSyncPlugin.queue.status()
-    const finalPayloadUser = await findPayloadUserByExternalId(targetUserId)
+    const finalPayloadUser = await findPayloadUserByBaUserId(targetUserId)
 
     throw new Error(
       `Queue processing timeout after ${maxWaitMs}ms. ` +
@@ -262,10 +290,10 @@ describe('Better Auth Integration', () => {
     await waitForQueueToProcess(betterAuthUserId, 'create')
 
     // Verify that a corresponding user was created in Payload
-    const payloadUser = await findPayloadUserByExternalId(betterAuthUserId)
+    const payloadUser = await findPayloadUserByBaUserId(betterAuthUserId)
 
     expect(payloadUser).toBeDefined()
-    expect(payloadUser?.externalId).toBe(betterAuthUserId)
+    expect(payloadUser?.baUserId).toBe(betterAuthUserId)
     expect(payloadUser?.name).toBe(testUser.name)
 
     // Clean up the test user
@@ -291,7 +319,7 @@ describe('Better Auth Integration', () => {
     await waitForQueueToProcess(betterAuthUserId, 'create')
 
     // Verify user exists in Payload
-    let payloadUser = await findPayloadUserByExternalId(betterAuthUserId)
+    let payloadUser = await findPayloadUserByBaUserId(betterAuthUserId)
     expect(payloadUser).toBeDefined()
 
     // Sign in to get session cookies using returnHeaders
@@ -330,7 +358,7 @@ describe('Better Auth Integration', () => {
     const betterAuthUser = getUserStmt.get(testUser.email)
 
     // Verify user no longer exists in Payload
-    payloadUser = await findPayloadUserByExternalId(betterAuthUserId)
+    payloadUser = await findPayloadUserByBaUserId(betterAuthUserId)
     expect(payloadUser).toBeNull()
 
     // Verify user no longer exists in better-auth
@@ -344,7 +372,8 @@ describe('Better Auth Integration', () => {
         collection: 'users',
         data: {
           name: 'Direct Payload User',
-          externalId: 'non-existent-user-id',
+          baUserId: 'non-existent-user-id',
+          email: 'direct@example.com',
         },
         overrideAccess: false,
       })
@@ -401,23 +430,24 @@ describe('Better Auth Integration', () => {
 
   it('should block unauthorized user creation through Payload API', async () => {
     // Test that direct user creation without proper signature is blocked
+    // Must use overrideAccess: false to test access control
     try {
       await payload.create({
         collection: 'users',
         data: {
           name: 'Unauthorized User',
-          externalId: 'unauthorized-user-id-' + Date.now(),
+          baUserId: 'unauthorized-user-id-' + Date.now(),
+          email: 'unauthorized@example.com',
         },
+        overrideAccess: false,
       })
       expect.fail('Expected user creation to fail, but it succeeded')
     } catch (error) {
       expect(error).toBeDefined()
       const errorMessage = error instanceof Error ? error.message : String(error)
 
-      // Should be blocked by access control or hook validation
-      expect(errorMessage).toMatch(
-        /User creation is managed by Better Auth|You are not allowed to perform this action/,
-      )
+      // Should be blocked by access control
+      expect(errorMessage).toMatch(/You are not allowed to perform this action/i)
     }
   })
 
@@ -440,28 +470,28 @@ describe('Better Auth Integration', () => {
     await waitForQueueToProcess(betterAuthUserId, 'create')
 
     // Find the created Payload user
-    const payloadUser = await findPayloadUserByExternalId(betterAuthUserId)
+    const payloadUser = await findPayloadUserByBaUserId(betterAuthUserId)
     expect(payloadUser).toBeDefined()
 
     // Now try to delete the user directly through Payload API (should fail)
+    // Must use overrideAccess: false to test access control
     try {
       await payload.delete({
         id: payloadUser!.id,
         collection: 'users',
+        overrideAccess: false,
       })
       expect.fail('Expected user deletion to fail, but it succeeded')
     } catch (error) {
       expect(error).toBeDefined()
       const errorMessage = error instanceof Error ? error.message : String(error)
 
-      // Should be blocked by access control or hook validation
-      expect(errorMessage).toMatch(
-        /User deletion is managed by Better Auth|You are not allowed to perform this action/,
-      )
+      // Should be blocked by access control
+      expect(errorMessage).toMatch(/You are not allowed to perform this action/i)
     }
 
     // Verify user still exists (deletion was blocked)
-    const userStillExists = await findPayloadUserByExternalId(betterAuthUserId)
+    const userStillExists = await findPayloadUserByBaUserId(betterAuthUserId)
     expect(userStillExists).toBeDefined()
     expect(userStillExists!.id).toBe(payloadUser!.id)
 
@@ -488,10 +518,11 @@ describe('Better Auth Integration', () => {
     await waitForQueueToProcess(betterAuthUserId, 'create')
 
     // Find the created Payload user
-    const payloadUser = await findPayloadUserByExternalId(betterAuthUserId)
+    const payloadUser = await findPayloadUserByBaUserId(betterAuthUserId)
     expect(payloadUser).toBeDefined()
 
     // Now try to update the user directly through Payload API (should fail)
+    // Must use overrideAccess: false to test access control
     try {
       await payload.update({
         id: payloadUser!.id,
@@ -499,21 +530,19 @@ describe('Better Auth Integration', () => {
         data: {
           name: 'Unauthorized Name Change',
         },
+        overrideAccess: false,
       })
       expect.fail('Expected user update to fail, but it succeeded')
     } catch (error) {
       expect(error).toBeDefined()
       const errorMessage = error instanceof Error ? error.message : String(error)
 
-      // Should be blocked by access control - the basicSigOk function should return false
-      // when no proper signature is provided in the request context
-      expect(errorMessage).toMatch(
-        /You are not allowed to perform this action|User updates? are managed by Better Auth/,
-      )
+      // Should be blocked by access control
+      expect(errorMessage).toMatch(/You are not allowed to perform this action/i)
     }
 
     // Verify user data unchanged (update was blocked)
-    const userUnchanged = await findPayloadUserByExternalId(betterAuthUserId)
+    const userUnchanged = await findPayloadUserByBaUserId(betterAuthUserId)
     expect(userUnchanged).toBeDefined()
     expect(userUnchanged!.name).toBe(testUser.name) // Original name should be preserved
 
@@ -523,7 +552,8 @@ describe('Better Auth Integration', () => {
 
   it('should block user operations with invalid signatures', async () => {
     // Test that operations with malformed or missing signatures are blocked
-    const testExternalId = 'invalid-sig-test-' + Date.now()
+    // Must use overrideAccess: false to test access control
+    const testBaUserId = 'invalid-sig-test-' + Date.now()
 
     // Try to create user with invalid context (no signature)
     try {
@@ -534,16 +564,16 @@ describe('Better Auth Integration', () => {
         },
         data: {
           name: 'Invalid Signature User',
-          externalId: testExternalId,
+          baUserId: testBaUserId,
+          email: 'invalid-sig@example.com',
         },
+        overrideAccess: false,
       })
       expect.fail('Expected user creation with invalid signature to fail, but it succeeded')
     } catch (error) {
       expect(error).toBeDefined()
       const errorMessage = error instanceof Error ? error.message : String(error)
-      expect(errorMessage).toMatch(
-        /User creation is managed by Better Auth|You are not allowed to perform this action/,
-      )
+      expect(errorMessage).toMatch(/You are not allowed to perform this action/i)
     }
 
     // Try to create user with malformed signature
@@ -551,7 +581,7 @@ describe('Better Auth Integration', () => {
       await payload.create({
         collection: 'users',
         context: {
-          baBody: { op: 'create', userId: testExternalId },
+          baBody: { op: 'create', userId: testBaUserId },
           baSig: {
             nonce: 'invalid-nonce',
             signature: 'invalid-signature',
@@ -560,16 +590,16 @@ describe('Better Auth Integration', () => {
         },
         data: {
           name: 'Malformed Signature User',
-          externalId: testExternalId,
+          baUserId: testBaUserId,
+          email: 'malformed-sig@example.com',
         },
+        overrideAccess: false,
       })
       expect.fail('Expected user creation with malformed signature to fail, but it succeeded')
     } catch (error) {
       expect(error).toBeDefined()
       const errorMessage = error instanceof Error ? error.message : String(error)
-      expect(errorMessage).toMatch(
-        /User creation is managed by Better Auth|You are not allowed to perform this action/,
-      )
+      expect(errorMessage).toMatch(/You are not allowed to perform this action/i)
     }
   })
 

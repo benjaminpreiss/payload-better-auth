@@ -32,10 +32,12 @@ if (process.env.USE_REDIS === 'true') {
   const { DatabaseSync } = await import('node:sqlite')
   const { createSqlitePollingEventBus } = await import('payload-better-auth/eventBus')
 
-  const db = new DatabaseSync('.event-bus.db')
+  // Allow test environment to use a separate file
+  const dbPath = process.env.EVENT_BUS_DB_PATH || '.event-bus.db'
+  const db = new DatabaseSync(dbPath)
   eventBus = createSqlitePollingEventBus({ db })
 
-  console.log('[eventBus] Using SQLite polling')
+  console.log('[eventBus] Using SQLite polling:', dbPath)
 }
 
 export { eventBus }

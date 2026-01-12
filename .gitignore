@@ -53,11 +53,12 @@ payload.db
 
 # Development sync adapter storage
 .dev-sync-state/
-.dev-sync-state.db
+.dev-sync-state.db*
 .event-bus.db
 
 # Test databases
 dev/tests/*.db
+dev/tests/*.db-*
 
 # Nx cache
 .nx/

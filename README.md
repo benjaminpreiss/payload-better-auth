@@ -11,6 +11,8 @@ A Payload CMS plugin that integrates [Better Auth](https://better-auth.com) for 
 - **Horizontal Scaling** — Redis adapter supports multiple instances
 - **Timestamp-based Coordination** — Automatic reconciliation without race conditions
 - **Custom Login UI** — Replaces Payload's default login with Better Auth authentication
+- **Auto-extending Users Collection** — Plugin extends your existing users collection with auth integration
+- **Better Auth Collections** — Dedicated collections for each auth method (email-password, magic-link)
 
 ## Installation
 
@@ -48,6 +50,7 @@ import { betterAuth } from 'better-auth'
 import { admin, apiKey } from 'better-auth/plugins'
 import Database from 'better-sqlite3'
 import { payloadBetterAuthPlugin } from 'payload-better-auth'
+import type { User } from './payload-types' // Generated Payload types
 import buildConfig from './payload.config.js'
 import { eventBus } from './eventBus'
 import { storage } from './syncAdapter'
@@ -59,11 +62,17 @@ export const auth = betterAuth({
   plugins: [
     admin(),
     apiKey(),
-    payloadBetterAuthPlugin({
+    payloadBetterAuthPlugin<User>({
       payloadConfig: buildConfig,
       token: process.env.RECONCILE_TOKEN,
       storage,   // Shared with Payload plugin
       eventBus,  // Shared with Payload plugin
+      // Map Better Auth user data to your Payload user fields
+      mapUserToPayload: (baUser) => ({
+        email: baUser.email ?? '',
+        name: baUser.name ?? '',
+        // Add defaults for any required fields in your users collection
+      }),
     }),
   ],
 })
@@ -79,6 +88,22 @@ import { eventBus } from './lib/eventBus'
 import { storage } from './lib/syncAdapter'
 
 export default buildConfig({
+  collections: [
+    // Optional: Define your own users collection - it will be auto-extended
+    {
+      slug: 'users',
+      fields: [
+        { name: 'email', type: 'email', required: true },
+        { name: 'name', type: 'text' },
+        // Add your custom fields...
+      ],
+      // Your access rules are preserved and OR'd with BA sync access
+      access: {
+        read: ({ req }) => Boolean(req.user),
+      },
+    },
+    // ... other collections
+  ],
   plugins: [
     betterAuthPayloadPlugin({
       betterAuthClientOptions: {
@@ -87,11 +112,20 @@ export default buildConfig({
       },
       storage,   // Shared with Better Auth plugin
       eventBus,  // Shared with Better Auth plugin
+      collectionPrefix: '__better_auth', // optional, this is the default
+      debug: false,  // Enable to see BA collections in admin panel
+      // Optional: Custom access for BA collections
+      baCollectionsAccess: {
+        read: ({ req }) => req.user?.role === 'admin',
+        delete: ({ req }) => req.user?.role === 'admin',
+      },
     }),
   ],
   // ... rest of your config
 })
 ```
+
+If you don't define a users collection, a minimal one will be created automatically.
 
 ### 4. Set Environment Variables
 
@@ -103,6 +137,34 @@ RECONCILE_TOKEN=your-api-token
 PAYLOAD_SECRET=your-payload-secret
 DATABASE_URI=file:./payload.db
 ```
+
+## Access Control
+
+Your access rules are preserved and combined with Better Auth's internal access. BA sync operations (signed with `BA_TO_PAYLOAD_SECRET`) always pass.
+
+```typescript
+// Example: Allow admins to manage all users, regular users to read only
+{
+  slug: 'users',
+  access: {
+    read: () => true, // everyone can read
+    create: ({ req }) => req.user?.role === 'admin', // only admins create manually
+    update: ({ req, id }) => req.user?.role === 'admin' || req.user?.id === id,
+    delete: ({ req }) => req.user?.role === 'admin',
+  },
+}
+// Result: BA sync operations pass via signature, manual operations use your rules
+```
+
+### Better Auth Collections Access
+
+The plugin creates two additional collections for auth method data:
+- `__better_auth_email_password` - Email/password account data
+- `__better_auth_magic_link` - Magic link account data
+
+These collections are locked down by default (only BA sync agent can access). You can optionally open up `read` and `delete` access.
+
+> **Note:** These collections are hidden from the admin panel by default. Set `debug: true` in the Payload plugin options to make them visible under the "Better Auth (DEBUG)" group for troubleshooting.
 
 ## Production Setup with Redis
 
@@ -135,6 +197,7 @@ payloadBetterAuthPlugin({
   eventBus,
   payloadConfig: buildConfig,
   token: process.env.RECONCILE_TOKEN,
+  mapUserToPayload: (baUser) => ({ ... }),
 })
 
 // In Payload config:
@@ -241,7 +304,7 @@ pnpm add github:benjaminpreiss/payload-better-auth#v1.2.0
 │   ├── storage/            # SecondaryStorage implementations (SQLite, Redis)
 │   ├── eventBus/           # EventBus implementations (SQLite polling, Redis Pub/Sub)
 │   ├── better-auth/        # Better Auth integration & reconcile queue
-│   ├── collections/        # Payload collections (Users)
+│   ├── collections/        # Payload collections (Users, BetterAuth)
 │   ├── components/         # React components (Login UI)
 │   ├── payload/            # Payload plugin
 │   ├── shared/             # Shared utilities (deduplicated logger)

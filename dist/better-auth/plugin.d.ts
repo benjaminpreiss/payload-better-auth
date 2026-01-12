@@ -1,14 +1,20 @@
-import type { AuthContext, BetterAuthPlugin } from 'better-auth';
+import type { BetterAuthPlugin } from 'better-auth';
 import type { SanitizedConfig } from 'payload';
 import type { EventBus } from '../eventBus/types';
 import type { SecondaryStorage } from '../storage/types';
 import { type InitOptions } from './reconcile-queue';
-type CreateAdminsUser = Parameters<AuthContext['internalAdapter']['createUser']>['0'];
-export interface PayloadBetterAuthPluginOptions extends InitOptions {
-    createAdmins?: {
-        overwrite?: boolean;
-        user: CreateAdminsUser;
-    }[];
+import { type BetterAuthUser } from './sources';
+/**
+ * Type for the user data that will be written to Payload.
+ * Excludes auto-generated fields.
+ */
+export type PayloadUserData<TUser extends object> = Omit<TUser, 'baUserId' | 'betterAuthAccounts' | 'createdAt' | 'id' | 'updatedAt'>;
+export interface PayloadBetterAuthPluginOptions<TUser extends object = Record<string, unknown>, TCollectionSlug extends string = string> extends InitOptions {
+    /**
+     * Prefix for Better Auth collections in Payload (default: '__better_auth').
+     * The collections will be named: {prefix}_email_password, {prefix}_magic_link
+     */
+    collectionPrefix?: string;
     enableLogging?: boolean;
     /**
      * EventBus for timestamp-based coordination between plugins.
@@ -25,6 +31,18 @@ export interface PayloadBetterAuthPluginOptions extends InitOptions {
      * export const eventBus = createSqlitePollingEventBus({ db })
      */
     eventBus: EventBus;
+    /**
+     * Map Better Auth user data to Payload user fields.
+     * Called on create AND update - allows filling defaults for schema changes.
+     *
+     * @example
+     * mapUserToPayload: (baUser) => ({
+     *   email: baUser.email ?? '',
+     *   name: baUser.name ?? 'New User',
+     *   role: 'user', // default for new required fields
+     * })
+     */
+    mapUserToPayload: (baUser: BetterAuthUser) => PayloadUserData<TUser>;
     payloadConfig: Promise<SanitizedConfig>;
     /**
      * Secondary storage for state coordination between Better Auth and Payload.
@@ -47,6 +65,10 @@ export interface PayloadBetterAuthPluginOptions extends InitOptions {
      */
     storage: SecondaryStorage;
     token: string;
+    /**
+     * Slug for the Payload users collection (default: 'users').
+     * Must match the collection slug defined in your Payload config.
+     */
+    usersSlug?: TCollectionSlug;
 }
-export declare const payloadBetterAuthPlugin: (opts: PayloadBetterAuthPluginOptions) => BetterAuthPlugin;
-export {};
+export declare const payloadBetterAuthPlugin: <TUser extends object = Record<string, unknown>, TCollectionSlug extends string = string>(opts: PayloadBetterAuthPluginOptions<TUser, TCollectionSlug>) => BetterAuthPlugin;

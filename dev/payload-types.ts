@@ -67,19 +67,30 @@ export interface Config {
   };
   blocks: {};
   collections: {
+    users: User;
     posts: Post;
     media: Media;
-    users: User;
+    __better_auth_email_password: _BetterAuthEmailPassword;
+    __better_auth_magic_link: _BetterAuthMagicLink;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    __better_auth_email_password: {
+      user: 'users';
+    };
+    __better_auth_magic_link: {
+      user: 'users';
+    };
+  };
   collectionsSelect: {
+    users: UsersSelect<false> | UsersSelect<true>;
     posts: PostsSelect<false> | PostsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
-    users: UsersSelect<false> | UsersSelect<true>;
+    __better_auth_email_password: _BetterAuthEmailPasswordSelect<false> | _BetterAuthEmailPasswordSelect<true>;
+    __better_auth_magic_link: _BetterAuthMagicLinkSelect<false> | _BetterAuthMagicLinkSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -120,6 +131,66 @@ export interface UserAuthOperations {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: number;
+  email: string;
+  name?: string | null;
+  baUserId?: string | null;
+  betterAuthAccounts?:
+    | (
+        | {
+            relationTo: '__better_auth_email_password';
+            value: number | _BetterAuthEmailPassword;
+          }
+        | {
+            relationTo: '__better_auth_magic_link';
+            value: number | _BetterAuthMagicLink;
+          }
+      )[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "__better_auth_email_password".
+ */
+export interface _BetterAuthEmailPassword {
+  id: number;
+  baAccountId: string;
+  baUserId: string;
+  email: string;
+  emailVerified?: boolean | null;
+  user?: {
+    docs?: (number | User)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "__better_auth_magic_link".
+ */
+export interface _BetterAuthMagicLink {
+  id: number;
+  baAccountId: string;
+  baUserId: string;
+  email: string;
+  emailVerified?: boolean | null;
+  user?: {
+    docs?: (number | User)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "posts".
  */
 export interface Post {
@@ -147,17 +218,6 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
- */
-export interface User {
-  id: number;
-  externalId: string;
-  name?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -181,6 +241,10 @@ export interface PayloadLockedDocument {
   id: number;
   document?:
     | ({
+        relationTo: 'users';
+        value: number | User;
+      } | null)
+    | ({
         relationTo: 'posts';
         value: number | Post;
       } | null)
@@ -189,8 +253,12 @@ export interface PayloadLockedDocument {
         value: number | Media;
       } | null)
     | ({
-        relationTo: 'users';
-        value: number | User;
+        relationTo: '__better_auth_email_password';
+        value: number | _BetterAuthEmailPassword;
+      } | null)
+    | ({
+        relationTo: '__better_auth_magic_link';
+        value: number | _BetterAuthMagicLink;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -236,6 +304,18 @@ export interface PayloadMigration {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users_select".
+ */
+export interface UsersSelect<T extends boolean = true> {
+  email?: T;
+  name?: T;
+  baUserId?: T;
+  betterAuthAccounts?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "posts_select".
  */
 export interface PostsSelect<T extends boolean = true> {
@@ -261,11 +341,27 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users_select".
+ * via the `definition` "__better_auth_email_password_select".
  */
-export interface UsersSelect<T extends boolean = true> {
-  externalId?: T;
-  name?: T;
+export interface _BetterAuthEmailPasswordSelect<T extends boolean = true> {
+  baAccountId?: T;
+  baUserId?: T;
+  email?: T;
+  emailVerified?: T;
+  user?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "__better_auth_magic_link_select".
+ */
+export interface _BetterAuthMagicLinkSelect<T extends boolean = true> {
+  baAccountId?: T;
+  baUserId?: T;
+  email?: T;
+  emailVerified?: T;
+  user?: T;
   updatedAt?: T;
   createdAt?: T;
 }

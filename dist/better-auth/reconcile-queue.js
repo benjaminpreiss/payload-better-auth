@@ -95,9 +95,23 @@ export class Queue {
                 attempts: t.attempts,
                 baId: t.baId
             });
-            await this.deps.syncUserToPayload(t.baUser ?? {
+            // Get user data (either from task or fetch from BA)
+            const baUser = t.baUser ?? {
                 id: t.baId
+            };
+            // Fetch accounts from Better Auth for this user
+            const accounts = await this.deps.internalAdapter.findAccounts(t.baId);
+            // Debug: log what accounts were found
+            log('queue.ensure.accounts', {
+                accountCount: accounts?.length ?? 0,
+                accounts: accounts?.map((a)=>({
+                        id: a.id,
+                        providerId: a.providerId
+                    })),
+                baId: t.baId
             });
+            // Sync user with accounts to Payload
+            await this.deps.syncUserToPayload(baUser, accounts);
             return;
         }
         // delete
@@ -116,7 +130,7 @@ export class Queue {
                 this.reconciling = true;
                 try {
                     await this.seedFullReconcile();
-                } catch (error) {
+                } catch (_error) {
                 // Error is already logged in seedFullReconcile
                 } finally{
                     this.reconciling = false;
@@ -189,9 +203,9 @@ export class Queue {
                 const { hasNextPage: nextPage, users: pUsers } = await this.deps.listPayloadUsersPage(pageSize, payloadPage);
                 hasNextPage = nextPage;
                 for (const pu of pUsers){
-                    const ext = pu.externalId?.toString();
-                    if (ext && !baIdSet.has(ext)) {
-                        this.enqueueDelete(ext, false, 'full-reconcile', reconcileId);
+                    const baId = pu.baUserId?.toString();
+                    if (baId && !baIdSet.has(baId)) {
+                        this.enqueueDelete(baId, false, 'full-reconcile', reconcileId);
                     }
                 }
                 payloadPage++;
@@ -220,7 +234,7 @@ export class Queue {
             this.processed++;
         } catch (e) {
             this.failed++;
-            this.lastError = e?.message ?? String(e);
+            this.lastError = e instanceof Error ? e.message : String(e);
             task.attempts += 1;
             const delay = Math.min(60_000, Math.pow(2, task.attempts) * 1000) + Math.floor(Math.random() * 500);
             task.nextAt = now + delay;

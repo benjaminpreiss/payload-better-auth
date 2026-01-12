@@ -108,6 +108,33 @@ export interface SqlitePollingEventBusOptions {
  * export const eventBus = createSqlitePollingEventBus({ db })
  * ```
  */
+/**
+ * Helper to run a database operation with retry logic for "database is locked" errors.
+ */
+function withRetry<T>(operation: () => T, maxRetries = 3): T {
+  let retries = maxRetries
+  while (retries > 0) {
+    try {
+      return operation()
+    } catch (error) {
+      if (
+        retries > 1 &&
+        error instanceof Error &&
+        (error.message.includes('database is locked') || error.message.includes('SQLITE_BUSY'))
+      ) {
+        retries--
+        // Small delay before retry using exponential backoff
+        const delay = (maxRetries - retries + 1) * 50 // 50ms, 100ms, 150ms
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay)
+      } else {
+        throw error
+      }
+    }
+  }
+  // This shouldn't be reached, but TypeScript needs it
+  throw new Error('Retry exhausted')
+}
+
 export function createSqlitePollingEventBus(options: SqlitePollingEventBusOptions): EventBus {
   const nodeEnv = process.env.NODE_ENV?.toLowerCase()
   if (nodeEnv === 'staging' || nodeEnv === 'production') {
@@ -124,22 +151,39 @@ export function createSqlitePollingEventBus(options: SqlitePollingEventBusOption
 
   // Initialize database schema only once
   if (!state.initialized) {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS eventbus_timestamp_events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        service TEXT NOT NULL,
-        timestamp INTEGER NOT NULL,
-        created_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000)
-      )
-    `)
+    // Enable WAL mode for better concurrent access from multiple processes
+    // This allows concurrent reads and writes from different processes
+    try {
+      db.exec('PRAGMA journal_mode=WAL')
+      db.exec('PRAGMA busy_timeout=5000') // Wait up to 5s if database is locked
+      db.exec('PRAGMA synchronous=NORMAL') // Slightly faster while still safe with WAL
+    } catch {
+      // Ignore PRAGMA errors (might fail in read-only mode or if already set)
+    }
+
+    withRetry(() => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS eventbus_timestamp_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          service TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch('now') * 1000)
+        )
+      `)
+    })
 
     // Index for efficient polling
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_timestamp_events_id ON eventbus_timestamp_events(id)`)
+    withRetry(() => {
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_timestamp_events_id ON eventbus_timestamp_events(id)`)
+    })
 
     // Get the current max ID so we don't process old events on startup
-    const maxTimestampEvent = db
-      .prepare('SELECT MAX(id) as max_id FROM eventbus_timestamp_events')
-      .get() as { max_id: null | number } | undefined
+    const maxTimestampEvent = withRetry(
+      () =>
+        db.prepare('SELECT MAX(id) as max_id FROM eventbus_timestamp_events').get() as
+          | { max_id: null | number }
+          | undefined,
+    )
 
     state.lastTimestampEventId = maxTimestampEvent?.max_id ?? 0
     state.initialized = true
@@ -164,20 +208,27 @@ export function createSqlitePollingEventBus(options: SqlitePollingEventBusOption
 
   // Poll for new events
   function pollEvents(): void {
-    // Poll timestamp events
-    const timestampEvents = selectNewTimestampEventsStmt.all(state.lastTimestampEventId) as Array<{
-      id: number
-      service: string
-      timestamp: number
-    }>
+    try {
+      // Poll timestamp events with retry logic
+      const timestampEvents = withRetry(
+        () =>
+          selectNewTimestampEventsStmt.all(state.lastTimestampEventId) as Array<{
+            id: number
+            service: string
+            timestamp: number
+          }>,
+      )
 
-    for (const row of timestampEvents) {
-      state.lastTimestampEventId = row.id
+      for (const row of timestampEvents) {
+        state.lastTimestampEventId = row.id
 
-      const handlers = state.timestampHandlers.get(row.service)
-      if (handlers) {
-        handlers.forEach((handler) => handler(row.timestamp))
+        const handlers = state.timestampHandlers.get(row.service)
+        if (handlers) {
+          handlers.forEach((handler) => handler(row.timestamp))
+        }
       }
+    } catch {
+      // Silently ignore polling errors - will retry on next interval
     }
   }
 
@@ -193,8 +244,12 @@ export function createSqlitePollingEventBus(options: SqlitePollingEventBusOption
   // Start cleanup if not already running
   if (!state.cleanupInterval) {
     state.cleanupInterval = setInterval(() => {
-      const cutoff = Date.now() - cleanupAge
-      cleanupTimestampEventsStmt.run(cutoff)
+      try {
+        const cutoff = Date.now() - cleanupAge
+        withRetry(() => cleanupTimestampEventsStmt.run(cutoff))
+      } catch {
+        // Silently ignore cleanup errors - will retry on next interval
+      }
     }, cleanupInterval)
 
     if (typeof state.cleanupInterval.unref === 'function') {
@@ -204,7 +259,7 @@ export function createSqlitePollingEventBus(options: SqlitePollingEventBusOption
 
   return {
     notifyTimestampChange(service: string, timestamp: number): void {
-      insertTimestampEventStmt.run(service, timestamp)
+      withRetry(() => insertTimestampEventStmt.run(service, timestamp))
 
       // Also notify local handlers immediately (for same-process performance)
       const handlers = state.timestampHandlers.get(service)

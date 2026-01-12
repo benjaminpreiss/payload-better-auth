@@ -29,10 +29,12 @@ if (process.env.USE_REDIS === 'true') {
   const { DatabaseSync } = await import('node:sqlite')
   const { createSqliteStorage } = await import('payload-better-auth/storage')
 
-  const db = new DatabaseSync('.dev-sync-state.db')
+  // Allow test environment to use a separate file
+  const dbPath = process.env.SYNC_STATE_DB_PATH || '.dev-sync-state.db'
+  const db = new DatabaseSync(dbPath)
   storage = createSqliteStorage({ db })
 
-  console.log('[syncAdapter] Using SQLite storage')
+  console.log('[syncAdapter] Using SQLite storage:', dbPath)
 }
 
 export { storage }

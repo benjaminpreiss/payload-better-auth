@@ -60,22 +60,4 @@ export interface SqlitePollingEventBusOptions {
      */
     pollInterval?: number;
 }
-/**
- * Create a SQLite-backed EventBus with polling for cross-process communication.
- *
- * **Note:** This adapter is intended for development and testing only.
- * For staging and production environments, use a Redis-backed EventBus instead.
- *
- * Timestamp events are stored in SQLite and polled periodically, allowing multiple
- * processes to communicate through the shared database file.
- *
- * @example
- * ```typescript
- * import { DatabaseSync } from 'node:sqlite'
- * import { createSqlitePollingEventBus } from 'payload-better-auth/eventBus'
- *
- * const db = new DatabaseSync('.event-bus.db')
- * export const eventBus = createSqlitePollingEventBus({ db })
- * ```
- */
 export declare function createSqlitePollingEventBus(options: SqlitePollingEventBusOptions): EventBus;
