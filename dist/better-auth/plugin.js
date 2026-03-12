@@ -1,6 +1,5 @@
 // src/plugins/reconcile-queue-plugin.ts
-import { APIError } from 'better-auth/api';
-import { createAuthEndpoint, createAuthMiddleware } from 'better-auth/plugins';
+import { APIError, createAuthEndpoint, createAuthMiddleware } from 'better-auth/api';
 import { createDeduplicatedLogger } from '../shared/deduplicatedLogger';
 import { SESSION_COOKIE_NAME_KEY, TIMESTAMP_PREFIX } from '../storage/keys';
 import { Queue } from './reconcile-queue';
@@ -191,7 +190,8 @@ export const payloadBetterAuthPlugin = (opts)=>{
             // 1. Explicitly set via useSecureCookies option
             // 2. NODE_ENV is 'production'
             // 3. baseURL starts with 'https://'
-            const isHttps = options.baseURL?.startsWith('https://') ?? false;
+            const baseUrlStr = typeof options.baseURL === 'string' ? options.baseURL : undefined;
+            const isHttps = baseUrlStr?.startsWith('https://') ?? false;
             const useSecureCookies = options.advanced?.useSecureCookies ?? (process.env.NODE_ENV === 'production' || isHttps);
             let sessionCookieName;
             if (customCookieName) {

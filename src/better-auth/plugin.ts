@@ -1,9 +1,8 @@
 // src/plugins/reconcile-queue-plugin.ts
-import type { AuthContext, BetterAuthPlugin, DeepPartial } from 'better-auth'
+import type { AuthContext, BetterAuthPlugin } from 'better-auth'
 import type { SanitizedConfig } from 'payload'
 
-import { APIError } from 'better-auth/api'
-import { createAuthEndpoint, createAuthMiddleware } from 'better-auth/plugins'
+import { APIError, createAuthEndpoint, createAuthMiddleware  } from 'better-auth/api'
 
 import type { EventBus } from '../eventBus/types'
 import type { SecondaryStorage } from '../storage/types'
@@ -168,7 +167,10 @@ export const payloadBetterAuthPlugin = <
       authMethods: createAuthEndpoint(
         '/auth/methods',
         { method: 'GET' },
-        async ({ context, json }) => {
+        async ({
+          context,
+          json,
+        }) => {
           const authMethods: AuthMethod[] = []
           // Check if emailAndPassword is enabled, or if present at all (not present defaults to false)
           if (context.options.emailAndPassword?.enabled) {
@@ -189,7 +191,11 @@ export const payloadBetterAuthPlugin = <
       deleteNow: createAuthEndpoint(
         '/reconcile/delete',
         { method: 'POST' },
-        async ({ context, json, request }) => {
+        async ({
+          context,
+          json,
+          request,
+        }) => {
           if (opts.token && request?.headers.get('x-reconcile-token') !== opts.token) {
             throw new APIError('UNAUTHORIZED', { message: 'invalid token' })
           }
@@ -209,7 +215,11 @@ export const payloadBetterAuthPlugin = <
       ensureNow: createAuthEndpoint(
         '/reconcile/ensure',
         { method: 'POST' },
-        async ({ context, json, request }) => {
+        async ({
+          context,
+          json,
+          request,
+        }) => {
           if (opts.token && request?.headers.get('x-reconcile-token') !== opts.token) {
             throw new APIError('UNAUTHORIZED', { message: 'invalid token' })
           }
@@ -229,7 +239,11 @@ export const payloadBetterAuthPlugin = <
       run: createAuthEndpoint(
         '/reconcile/run',
         { method: 'POST' },
-        async ({ context, json, request }) => {
+        async ({
+          context,
+          json,
+          request,
+        }) => {
           if (opts.token && request?.headers.get('x-reconcile-token') !== opts.token) {
             throw new APIError('UNAUTHORIZED', { message: 'invalid token' })
           }
@@ -240,7 +254,11 @@ export const payloadBetterAuthPlugin = <
       status: createAuthEndpoint(
         '/reconcile/status',
         { method: 'GET' },
-        async ({ context, json, request }) => {
+        async ({
+          context,
+          json,
+          request,
+        }) => {
           if (opts.token && request?.headers.get('x-reconcile-token') !== opts.token) {
             return Promise.reject(
               new APIError('UNAUTHORIZED', { message: 'invalid token' }) as Error,
@@ -251,22 +269,29 @@ export const payloadBetterAuthPlugin = <
       ),
       // Warmup endpoint - triggers plugin initialization without auth
       // Returns basic instance info
-      warmup: createAuthEndpoint('/warmup', { method: 'GET' }, async ({ context, json }) => {
-        const authMethods: string[] = []
-        if (context.options.emailAndPassword?.enabled) {
-          authMethods.push('emailAndPassword')
-        }
-        if (context.options.plugins?.some((p) => p.id === 'magic-link')) {
-          authMethods.push('magicLink')
-        }
+      warmup: createAuthEndpoint(
+        '/warmup',
+        { method: 'GET' },
+        async ({
+          context,
+          json,
+        }) => {
+          const authMethods: string[] = []
+          if (context.options.emailAndPassword?.enabled) {
+            authMethods.push('emailAndPassword')
+          }
+          if (context.options.plugins?.some((p) => p.id === 'magic-link')) {
+            authMethods.push('magicLink')
+          }
 
-        return json({
-          authMethods,
-          initialized: true,
-          pluginId: 'reconcile-queue-plugin',
-          timestamp: new Date().toISOString(),
-        })
-      }),
+          return json({
+            authMethods,
+            initialized: true,
+            pluginId: 'reconcile-queue-plugin',
+            timestamp: new Date().toISOString(),
+          })
+        },
+      ),
     },
     hooks: {
       before: [
@@ -295,7 +320,8 @@ export const payloadBetterAuthPlugin = <
       // 1. Explicitly set via useSecureCookies option
       // 2. NODE_ENV is 'production'
       // 3. baseURL starts with 'https://'
-      const isHttps = options.baseURL?.startsWith('https://') ?? false
+      const baseUrlStr = typeof options.baseURL === 'string' ? options.baseURL : undefined
+      const isHttps = baseUrlStr?.startsWith('https://') ?? false
       const useSecureCookies =
         options.advanced?.useSecureCookies ?? (process.env.NODE_ENV === 'production' || isHttps)
 
@@ -418,7 +444,7 @@ export const payloadBetterAuthPlugin = <
       const queueBasedHooks = createQueueBasedHooks(queue)
 
       return {
-        context: { payloadSyncPlugin: { queue } } as DeepPartial<Omit<AuthContext, 'options'>>,
+        context: { payloadSyncPlugin: { queue } },
         options: {
           databaseHooks: queueBasedHooks,
           // Pass storage to Better Auth as secondaryStorage - this makes BA write sessions
@@ -438,5 +464,5 @@ export const payloadBetterAuthPlugin = <
         },
       },
     },
-  }
+  } satisfies BetterAuthPlugin
 }

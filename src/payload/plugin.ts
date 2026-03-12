@@ -1,4 +1,4 @@
-import type { ClientOptions } from 'better-auth'
+import type { BetterAuthClientOptions as AuthClientOptions } from 'better-auth'
 import type { Access, CollectionConfig, Config } from 'payload'
 
 import type { EventBus } from '../eventBus/types'
@@ -23,7 +23,7 @@ export type BetterAuthClientOptions = {
    * @example 'http://auth-service:3000'
    */
   internalBaseURL: string
-} & Omit<ClientOptions, 'baseURL'>
+} & Omit<AuthClientOptions, 'baseURL'>
 
 export type BetterAuthPayloadPluginOptions = {
   /**

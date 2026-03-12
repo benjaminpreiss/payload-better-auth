@@ -1,9 +1,9 @@
-import type { ClientOptions } from 'better-auth';
+import type { BetterAuthClientOptions } from 'better-auth';
 import type React from 'react';
 import type { AuthMethod } from '../better-auth/helpers';
 export type AuthClientOptions = {
     baseURL: string;
-} & Omit<ClientOptions, 'baseURL'>;
+} & Omit<BetterAuthClientOptions, 'baseURL'>;
 export declare function fetchAuthMethods({ additionalHeaders, betterAuthBaseUrl, debug, }: {
     additionalHeaders?: HeadersInit;
     betterAuthBaseUrl: string;

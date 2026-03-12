@@ -161,8 +161,8 @@ const NONCE_TTL_SECONDS = 5 * 60 // 5 minutes in seconds
                 if (existing.docs[0]) {
                     return {
                         user: {
-                            collection: 'users',
-                            ...existing.docs[0]
+                            ...existing.docs[0],
+                            collection: 'users'
                         }
                     };
                 }

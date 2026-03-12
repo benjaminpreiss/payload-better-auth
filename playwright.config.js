@@ -1,4 +1,12 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, devices } from '@playwright/test'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+// Keep Playwright browsers inside the project (no global ~/Library/Caches/ms-playwright)
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(__dirname, '.playwright-browsers')
+}
 
 /**
  * See https://playwright.dev/docs/test-configuration.

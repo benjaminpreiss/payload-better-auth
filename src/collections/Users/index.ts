@@ -231,7 +231,7 @@ function createBetterAuthStrategy(storage: SecondaryStorage, _prefix: string) {
         })
 
         if (existing.docs[0]) {
-          return { user: { collection: 'users' as const, ...existing.docs[0] } }
+          return { user: { ...existing.docs[0], collection: 'users' as const } }
         }
         // User not found in Payload, try next token
       }

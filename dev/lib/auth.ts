@@ -1,8 +1,9 @@
 import type { User } from '@/payload-types'
 import type { CollectionSlug } from 'payload'
 
+import { apiKey } from '@better-auth/api-key'
 import { betterAuth } from 'better-auth'
-import { admin, apiKey, magicLink } from 'better-auth/plugins'
+import { admin, magicLink } from 'better-auth/plugins'
 import Database from 'better-sqlite3'
 import { payloadBetterAuthPlugin } from 'payload-better-auth'
 
@@ -27,6 +28,7 @@ export const auth = betterAuth({
       // Map Better Auth user data to Payload user fields
       mapUserToPayload: (baUser) => ({
         name: baUser.name ?? '',
+        collection: 'users',
         email: baUser.email ?? '',
       }),
       payloadConfig: buildConfig,

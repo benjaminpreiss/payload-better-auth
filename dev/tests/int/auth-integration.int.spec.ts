@@ -156,7 +156,7 @@ describe('Better Auth Integration', () => {
 
     while (Date.now() - startTime < maxWaitMs && attempt < maxAttempts) {
       const status = (
-        (await auth.$context) as PayloadSyncPluginContext
+        (await auth.$context) as unknown as PayloadSyncPluginContext
       ).payloadSyncPlugin.queue.status()
 
       // For create operations, check if the user exists in Payload
@@ -206,7 +206,7 @@ describe('Better Auth Integration', () => {
 
     // Final check after timeout
     const finalStatus = (
-      (await auth.$context) as PayloadSyncPluginContext
+      (await auth.$context) as unknown as PayloadSyncPluginContext
     ).payloadSyncPlugin.queue.status()
     const finalPayloadUser = await findPayloadUserByBaUserId(targetUserId)
 

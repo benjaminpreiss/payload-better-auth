@@ -1,4 +1,4 @@
-import type { ClientOptions } from 'better-auth';
+import type { BetterAuthClientOptions as AuthClientOptions } from 'better-auth';
 import type { Access, Config } from 'payload';
 import type { EventBus } from '../eventBus/types';
 import type { SecondaryStorage } from '../storage/types';
@@ -15,7 +15,7 @@ export type BetterAuthClientOptions = {
      * @example 'http://auth-service:3000'
      */
     internalBaseURL: string;
-} & Omit<ClientOptions, 'baseURL'>;
+} & Omit<AuthClientOptions, 'baseURL'>;
 export type BetterAuthPayloadPluginOptions = {
     /**
      * Custom access rules for Better Auth collections (email_password, magic_link).
