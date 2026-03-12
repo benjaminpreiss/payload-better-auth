@@ -1,3 +1,10 @@
+## [3.1.1](https://github.com/benjaminpreiss/payload-better-auth/compare/v3.1.0...v3.1.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* better-auth 1.5 and Payload 3.79 compatibility ([a5cb32d](https://github.com/benjaminpreiss/payload-better-auth/commit/a5cb32dd88810f4bfcd82ba7f1d08bbfbb1dd597))
+
 # [3.1.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v3.0.0...v3.1.0) (2026-01-12)
 
 
