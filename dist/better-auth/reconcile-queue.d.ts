@@ -45,6 +45,7 @@ export declare class Queue {
     private clearFullReconcileTasks;
     private enqueue;
     private listBAUsersPage;
+    private runEnsure;
     private runTask;
     private scheduleNextReconcile;
     /** Paginated approach: process users page by page to reduce memory usage */
@@ -52,6 +53,12 @@ export declare class Queue {
     private tick;
     enqueueDelete(baId: string, priority?: boolean, source?: TaskSource, reconcileId?: string): void;
     enqueueEnsure(user: BAUser, priority?: boolean, source?: TaskSource, reconcileId?: string): void;
+    /**
+     * Run ensure (sync user to Payload) immediately without waiting for the queue tick.
+     * Used from database hooks so that e.g. magic-link redirect sees the user in Payload
+     * before the response is sent. The task remains enqueued for idempotent retry.
+     */
+    runEnsureNow(user: BAUser): Promise<void>;
     /** Seed tasks by comparing users page by page (Better-Auth → Payload). */
     seedFullReconcile(): Promise<void>;
     start({ reconcileEveryMs, tickMs }?: {

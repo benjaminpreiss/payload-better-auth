@@ -160,32 +160,35 @@ export class Queue {
     return { total, users }
   }
 
+  private async runEnsure(baUser: BAUser): Promise<void> {
+    const log = this.deps?.log ?? (() => {})
+    const baId = baUser.id
+
+    // Fetch accounts from Better Auth for this user
+    const accounts = await this.deps.internalAdapter.findAccounts(baId)
+
+    log('queue.ensure.accounts', {
+      accountCount: accounts?.length ?? 0,
+      accounts: accounts?.map((a) => ({ id: a.id, providerId: a.providerId })),
+      baId,
+    })
+
+    await this.deps.syncUserToPayload(baUser, accounts as BetterAuthAccount[])
+  }
+
   private async runTask(t: Task) {
     const log = this.deps?.log ?? (() => {})
     if (t.kind === 'ensure') {
       log('queue.ensure', { attempts: t.attempts, baId: t.baId })
-
-      // Get user data (either from task or fetch from BA)
       const baUser = t.baUser ?? { id: t.baId }
-
-      // Fetch accounts from Better Auth for this user
-      const accounts = await this.deps.internalAdapter.findAccounts(t.baId)
-
-      // Debug: log what accounts were found
-      log('queue.ensure.accounts', {
-        accountCount: accounts?.length ?? 0,
-        accounts: accounts?.map((a) => ({ id: a.id, providerId: a.providerId })),
-        baId: t.baId,
-      })
-
-      // Sync user with accounts to Payload
-      await this.deps.syncUserToPayload(baUser, accounts as BetterAuthAccount[])
+      await this.runEnsure(baUser)
       return
     }
     // delete
     log('queue.delete', { attempts: t.attempts, baId: t.baId })
     await this.deps.deleteUserFromPayload(t.baId)
   }
+
   private scheduleNextReconcile() {
     if (this.reconcileTimeout) {
       clearTimeout(this.reconcileTimeout)
@@ -211,7 +214,6 @@ export class Queue {
       this.reconcileTimeout.unref()
     }
   }
-
   /** Paginated approach: process users page by page to reduce memory usage */
   private async seedFullReconcilePaginated(reconcileId: string) {
     const log = this.deps?.log ?? (() => {})
@@ -348,6 +350,15 @@ export class Queue {
       },
       priority,
     )
+  }
+
+  /**
+   * Run ensure (sync user to Payload) immediately without waiting for the queue tick.
+   * Used from database hooks so that e.g. magic-link redirect sees the user in Payload
+   * before the response is sent. The task remains enqueued for idempotent retry.
+   */
+  async runEnsureNow(user: BAUser): Promise<void> {
+    await this.runEnsure(user)
   }
 
   /** Seed tasks by comparing users page by page (Better-Auth → Payload). */

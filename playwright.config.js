@@ -43,12 +43,22 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  webServer: {
-    command: 'pnpm run dev:start',
-    url: 'http://localhost:3000/admin',
-    reuseExistingServer: !process.env.CI,
-    timeout: 30_000, // 30 seconds to start the production server
-    stdout: 'pipe',
-    stderr: 'pipe',
-  },
+  webServer: [
+    {
+      command: 'pnpm run dev:start',
+      url: 'http://localhost:3000/admin',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
+      command: 'pnpm run dev:auth:test',
+      url: 'http://localhost:3001/api/auth/warmup',
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+  ],
 })

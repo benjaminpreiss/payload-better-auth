@@ -3,7 +3,7 @@ import { EmailPasswordFormClient } from './EmailPasswordFormClient';
 export async function fetchAuthMethods({ additionalHeaders, betterAuthBaseUrl, debug = false }) {
     const headers = new Headers(additionalHeaders);
     headers.append('Content-Type', 'application/json');
-    const url = `${betterAuthBaseUrl}/api/auth/auth/methods`;
+    const url = `${betterAuthBaseUrl}/api/auth/methods`;
     if (debug) {
         console.log('[payload-better-auth] fetchAuthMethods: Attempting to fetch auth methods');
         console.log('[payload-better-auth] fetchAuthMethods:   - URL:', url);

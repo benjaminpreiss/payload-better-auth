@@ -88,6 +88,21 @@ export class Queue {
             users
         };
     }
+    async runEnsure(baUser) {
+        const log = this.deps?.log ?? (()=>{});
+        const baId = baUser.id;
+        // Fetch accounts from Better Auth for this user
+        const accounts = await this.deps.internalAdapter.findAccounts(baId);
+        log('queue.ensure.accounts', {
+            accountCount: accounts?.length ?? 0,
+            accounts: accounts?.map((a)=>({
+                    id: a.id,
+                    providerId: a.providerId
+                })),
+            baId
+        });
+        await this.deps.syncUserToPayload(baUser, accounts);
+    }
     async runTask(t) {
         const log = this.deps?.log ?? (()=>{});
         if (t.kind === 'ensure') {
@@ -95,23 +110,10 @@ export class Queue {
                 attempts: t.attempts,
                 baId: t.baId
             });
-            // Get user data (either from task or fetch from BA)
             const baUser = t.baUser ?? {
                 id: t.baId
             };
-            // Fetch accounts from Better Auth for this user
-            const accounts = await this.deps.internalAdapter.findAccounts(t.baId);
-            // Debug: log what accounts were found
-            log('queue.ensure.accounts', {
-                accountCount: accounts?.length ?? 0,
-                accounts: accounts?.map((a)=>({
-                        id: a.id,
-                        providerId: a.providerId
-                    })),
-                baId: t.baId
-            });
-            // Sync user with accounts to Payload
-            await this.deps.syncUserToPayload(baUser, accounts);
+            await this.runEnsure(baUser);
             return;
         }
         // delete
@@ -263,6 +265,13 @@ export class Queue {
             reconcileId,
             source
         }, priority);
+    }
+    /**
+   * Run ensure (sync user to Payload) immediately without waiting for the queue tick.
+   * Used from database hooks so that e.g. magic-link redirect sees the user in Payload
+   * before the response is sent. The task remains enqueued for idempotent retry.
+   */ async runEnsureNow(user) {
+        await this.runEnsure(user);
     }
     /** Seed tasks by comparing users page by page (Better-Auth → Payload). */ async seedFullReconcile() {
         const log = this.deps?.log ?? (()=>{});

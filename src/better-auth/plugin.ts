@@ -108,9 +108,9 @@ function createQueueBasedHooks(queue: Queue) {
   return {
     user: {
       create: {
-        after: (user: BAUser): Promise<void> => {
+        after: async (user: BAUser): Promise<void> => {
           queue.enqueueEnsure(user, true, 'user-operation')
-          return Promise.resolve()
+          await queue.runEnsureNow(user)
         },
       },
       delete: {
@@ -120,9 +120,9 @@ function createQueueBasedHooks(queue: Queue) {
         },
       },
       update: {
-        after: (user: BAUser): Promise<void> => {
+        after: async (user: BAUser): Promise<void> => {
           queue.enqueueEnsure(user, true, 'user-operation')
-          return Promise.resolve()
+          await queue.runEnsureNow(user)
         },
       },
     },
@@ -165,7 +165,7 @@ export const payloadBetterAuthPlugin = <
     endpoints: {
       // convenience for tests/admin tools (optional)
       authMethods: createAuthEndpoint(
-        '/auth/methods',
+        '/methods',
         { method: 'GET' },
         async ({
           context,

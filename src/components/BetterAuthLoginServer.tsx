@@ -18,7 +18,7 @@ export async function fetchAuthMethods({
 }): Promise<{ data: AuthMethod[]; error: null } | { data: null; error: Error }> {
   const headers = new Headers(additionalHeaders)
   headers.append('Content-Type', 'application/json')
-  const url = `${betterAuthBaseUrl}/api/auth/auth/methods`
+  const url = `${betterAuthBaseUrl}/api/auth/methods`
 
   if (debug) {
     console.log('[payload-better-auth] fetchAuthMethods: Attempting to fetch auth methods')

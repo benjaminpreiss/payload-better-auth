@@ -14,9 +14,9 @@ const defaultLog = (msg, extra)=>{
     return {
         user: {
             create: {
-                after: (user)=>{
+                after: async (user)=>{
                     queue.enqueueEnsure(user, true, 'user-operation');
-                    return Promise.resolve();
+                    await queue.runEnsureNow(user);
                 }
             },
             delete: {
@@ -26,9 +26,9 @@ const defaultLog = (msg, extra)=>{
                 }
             },
             update: {
-                after: (user)=>{
+                after: async (user)=>{
                     queue.enqueueEnsure(user, true, 'user-operation');
-                    return Promise.resolve();
+                    await queue.runEnsureNow(user);
                 }
             }
         }
@@ -53,7 +53,7 @@ export const payloadBetterAuthPlugin = (opts)=>{
         id: 'reconcile-queue-plugin',
         endpoints: {
             // convenience for tests/admin tools (optional)
-            authMethods: createAuthEndpoint('/auth/methods', {
+            authMethods: createAuthEndpoint('/methods', {
                 method: 'GET'
             }, async ({ context, json })=>{
                 const authMethods = [];
