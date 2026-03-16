@@ -1,3 +1,15 @@
+# [3.2.0](https://github.com/benjaminpreiss/payload-better-auth/compare/v3.1.1...v3.2.0) (2026-03-16)
+
+
+### Bug Fixes
+
+* **auth:** run user sync in hooks immediately and fix auth methods path ([b7fc11b](https://github.com/benjaminpreiss/payload-better-auth/commit/b7fc11b1e0610f7c0fb719c54be9a8b83d551eda))
+
+
+### Features
+
+* **dev:** run Better Auth as standalone Hono server ([ab7dc21](https://github.com/benjaminpreiss/payload-better-auth/commit/ab7dc212b93a55bbb71fa2fb98ce1a7b93437a46))
+
 ## [3.1.1](https://github.com/benjaminpreiss/payload-better-auth/compare/v3.1.0...v3.1.1) (2026-03-12)
 
 
