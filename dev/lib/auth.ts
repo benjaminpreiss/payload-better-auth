@@ -15,9 +15,19 @@ import { storage } from './syncAdapter'
 // Use environment-specific database path
 const dbPath = process.env.BETTER_AUTH_DB_PATH || './better-auth.db'
 
+const betterAuthPortRaw = process.env.BETTER_AUTH_PORT
+if (betterAuthPortRaw === undefined) throw new Error('BETTER_AUTH_PORT is required')
+const betterAuthUrl = `http://localhost:${betterAuthPortRaw}`
+
+const payloadPortRaw = process.env.PAYLOAD_PORT
+if (payloadPortRaw === undefined) throw new Error('PAYLOAD_PORT is required')
+const trustedOrigins = [`http://localhost:${payloadPortRaw}`]
+
 export const auth = betterAuth({
+  baseURL: betterAuthUrl,
   database: new Database(dbPath),
   secret: process.env.BETTER_AUTH_SECRET,
+  trustedOrigins,
 
   emailAndPassword: { enabled: true },
   plugins: [

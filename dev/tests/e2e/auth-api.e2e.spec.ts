@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test'
 import Database from 'better-sqlite3'
 
+const betterAuthPortRaw = process.env.BETTER_AUTH_PORT
+if (betterAuthPortRaw === undefined) throw new Error('BETTER_AUTH_PORT is required')
+const authApiBase = `http://localhost:${betterAuthPortRaw}`
+
 test.describe('Auth API', () => {
   const generateTestUser = () => ({
     name: 'Test User',
@@ -29,7 +33,7 @@ test.describe('Auth API', () => {
   }
 
   test('should return available auth methods from /auth/methods endpoint', async ({ request }) => {
-    const response = await request.get('http://localhost:3000/api/auth/auth/methods', {
+    const response = await request.get(`${authApiBase}/api/auth/methods`, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -51,7 +55,7 @@ test.describe('Auth API', () => {
     const testLocale = 'de-DE'
 
     try {
-      const response = await request.post('http://localhost:3000/api/auth/sign-up/email', {
+      const response = await request.post(`${authApiBase}/api/auth/sign-up/email`, {
         data: {
           name: testUser.name,
           email: testUser.email,

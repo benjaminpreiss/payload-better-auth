@@ -138,6 +138,10 @@ PAYLOAD_SECRET=your-payload-secret
 DATABASE_URI=file:./payload.db
 ```
 
+## Process Architecture
+
+**Run Better Auth and Payload as separate processes.** When both run in the same process (e.g. Better Auth and Payload in one Next.js app), this plugin can trigger interaction loops between the two (reconcile → Payload hooks → sync → Better Auth → reconcile), which can cause noticeable performance issues. Running Better Auth and Payload in separate processes avoids these loops and is the recommended setup for both development and production.
+
 ## Access Control
 
 Your access rules are preserved and combined with Better Auth's internal access. BA sync operations (signed with `BA_TO_PAYLOAD_SECRET`) always pass.

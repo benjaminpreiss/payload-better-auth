@@ -14,6 +14,10 @@ import { storage } from './lib/syncAdapter'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+const betterAuthPortRaw = process.env.BETTER_AUTH_PORT
+if (betterAuthPortRaw === undefined) throw new Error('BETTER_AUTH_PORT is required')
+const betterAuthUrl = `http://localhost:${betterAuthPortRaw}`
+
 if (!process.env.ROOT_DIR) {
   process.env.ROOT_DIR = dirname
 }
@@ -87,9 +91,8 @@ export default buildConfig({
   plugins: [
     betterAuthPayloadPlugin({
       betterAuthClientOptions: {
-        // In local development, internal and external URLs are typically the same
-        externalBaseURL: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
-        internalBaseURL: process.env.INTERNAL_SERVER_URL || 'http://localhost:3000',
+        externalBaseURL: betterAuthUrl,
+        internalBaseURL: betterAuthUrl,
       },
       collectionPrefix: '__better_auth', // optional, this is the default
       debug: true,
